@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import { spring } from 'svelte/motion';
 
 	// --- TYPE DEFINITIONS ---
@@ -35,17 +35,13 @@
 		sentinelEl: HTMLElement | null;
 		revealP: number;
 		visibleWordIndex: number;
-		isFixed: boolean;
 		textScale: number;
-		fixedLeftPx: number;
 	}
 
 	interface GridState {
 		dockEl: HTMLElement | null;
 		sentinelEl: HTMLElement | null;
 		fillerEl: HTMLElement | null;
-		isFixed: boolean;
-		fixedLeftPx: number;
 		fillerP: number;
 	}
 
@@ -53,15 +49,11 @@
 		trackEl: HTMLElement | null;
 		dockEl: HTMLElement | null;
 		progress: number;
-		isFixed: boolean;
-		fixedLeftPx: number;
 	}
 
 	interface FormState {
 		dockEl: HTMLElement | null;
 		sentinelEl: HTMLElement | null;
-		isFixed: boolean;
-		fixedLeftPx: number;
 	}
 
 	// ---------------------------------------------------------
@@ -81,8 +73,8 @@
 
 		const canvas = node.querySelector('canvas');
 		if (!canvas) return;
-		const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 
+		const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 		if (!ctx) return;
 
 		let pixels: Pixel[] = [];
@@ -94,7 +86,6 @@
 		const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 
 		function resize() {
-			if (!canvas) return;
 			const r = canvas.getBoundingClientRect();
 			width = Math.max(1, Math.floor(r.width));
 			height = Math.max(1, Math.floor(r.height));
@@ -137,14 +128,12 @@
 		}
 
 		function drawPixel(p: Pixel) {
-			if (!ctx) return;
 			const centerOffset = p.maxSizeInteger * 0.5 - p.size * 0.5;
 			ctx.fillStyle = p.color;
 			ctx.fillRect(p.x + centerOffset, p.y + centerOffset, p.size, p.size);
 		}
 
 		function step() {
-			if (!ctx) return;
 			ctx.clearRect(0, 0, width, height);
 			let allIdle = true;
 
@@ -224,16 +213,14 @@
 	}
 
 	// ---------------------------------------------------------
-	// CORE LOGIC
+	// CORE LOGIC (STICKY-ONLY DOCKING)
 	// ---------------------------------------------------------
 	let scrollParent: HTMLElement | null = null;
 
 	let introState: IntroState = {
 		trackEl: null,
 		dockEl: null,
-		progress: 0,
-		isFixed: false,
-		fixedLeftPx: 0
+		progress: 0
 	};
 
 	let track1: TrackState = {
@@ -243,9 +230,7 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false,
-		textScale: 1,
-		fixedLeftPx: 0
+		textScale: 1
 	};
 
 	let track2: TrackState = {
@@ -255,9 +240,7 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false,
-		textScale: 1,
-		fixedLeftPx: 0
+		textScale: 1
 	};
 
 	let track3: TrackState = {
@@ -267,17 +250,13 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false,
-		textScale: 1,
-		fixedLeftPx: 0
+		textScale: 1
 	};
 
 	let grid1: GridState = {
 		dockEl: null,
 		sentinelEl: null,
 		fillerEl: null,
-		isFixed: false,
-		fixedLeftPx: 0,
 		fillerP: 0
 	};
 
@@ -285,43 +264,39 @@
 		dockEl: null,
 		sentinelEl: null,
 		fillerEl: null,
-		isFixed: false,
-		fixedLeftPx: 0,
 		fillerP: 0
 	};
 
 	let formState: FormState = {
 		dockEl: null,
-		sentinelEl: null,
-		isFixed: false,
-		fixedLeftPx: 0
+		sentinelEl: null
 	};
 
 	let pageScrollTop = 0;
+
 	let mouseCoords = spring({ x: 0, y: 0 }, { stiffness: 0.05, damping: 0.25 });
 
 	// --- UTILS ---
 	const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-	// --- GRAMMAR HELPER (New) ---
+	// --- GRAMMAR HELPER ---
 	function getArticle(word: string) {
-		// Starts with vowel?
 		return /^[aeiou]/i.test(word) ? 'an' : 'a';
 	}
 
 	// --- CONFIG ---
 	const INTRO_DISTANCE_PX = 40;
-	const FIX_ON_P = 0.985;
-	const FIX_OFF_P = 0.93;
 	const REVEAL_LEADIN = 0.18;
 	const BG_FADE_PX = 900;
 	const ESTIMATED_WORDS = 20;
-	const TEXT_FIX_TOP_PX = 240;
+
+	const TEXT_FIX_TOP_PX = 240; // sticky top for text docks
 	const SHRINK_RANGE_PX = 400;
 	const TARGET_SCALE = 0.5;
-	const GRID_FIX_TOP_PX = 340;
-	const FORM_FIX_TOP_PX = 380;
+
+	const GRID_FIX_TOP_PX = 340; // sticky top for grid docks
+	const FORM_FIX_TOP_PX = 380; // sticky top for form
 
 	const BASE_MEDIUM = 55;
 	const BASE_LARGE = 80;
@@ -342,20 +317,6 @@
 		mouseCoords.set({ x, y });
 	}
 
-	function updateFixedState(
-		stateObj: TrackState | IntroState | GridState | FormState,
-		windowCenter: number
-	) {
-		if (stateObj.isFixed) {
-			if (stateObj.dockEl) {
-				const rect = stateObj.dockEl.getBoundingClientRect();
-				stateObj.fixedLeftPx = rect.left + rect.width / 2;
-			} else {
-				stateObj.fixedLeftPx = windowCenter;
-			}
-		}
-	}
-
 	// --- DATA ---
 	interface LineData {
 		size: string;
@@ -367,11 +328,13 @@
 		{ size: 'medium', text: 'lies in wait for all of us' },
 		{ size: 'larger', text: 'We all have the right to contribute' }
 	];
+
 	const bottomTextData: LineData[] = [
 		{ size: 'medium', text: 'Breakthroughs are being made' },
 		{ size: 'medium', text: 'against chronic disease' },
 		{ size: 'larger', text: 'Together we can ensure they make it to patients' }
 	];
+
 	const finalTextData: LineData[] = [
 		{ size: 'medium', text: 'The fight against Chronic Disease' },
 		{ size: 'larger', text: 'starts with you' }
@@ -580,38 +543,36 @@
 		scale: 0.8 + Math.random() * 0.4
 	}));
 
+	// Progress based on scrollTop and offsetTop (fast & stable inside overflow container)
 	function computeTrackProgress(trackEl: HTMLElement | null, viewportH: number) {
 		if (!scrollParent || !trackEl) return 0;
-		const trackRect = trackEl.getBoundingClientRect();
-		const trackTop = trackRect.top;
-		const trackTopInScroll = trackTop + pageScrollTop;
-		const end = trackTopInScroll + (trackEl.offsetHeight - viewportH);
-		const current = pageScrollTop;
-		const denom = end - trackTopInScroll;
-		return clamp01(denom > 0 ? (current - trackTopInScroll) / denom : 0);
+
+		const top = trackEl.offsetTop;
+		const end = top + (trackEl.offsetHeight - viewportH);
+		const current = scrollParent.scrollTop;
+		const denom = end - top;
+
+		return clamp01(denom > 0 ? (current - top) / denom : 0);
 	}
 
-	function handleStickyText(
-		viewportEl: HTMLElement | null,
-		sentinelEl: HTMLElement | null,
-		isFixedState: boolean,
-		setFixedFn: (val: boolean) => void,
-		currentScale: number
-	) {
-		if (!viewportEl || !sentinelEl) return currentScale;
+	// Sticky-only: compute scale as the viewport center approaches the sticky top line
+	function computeStickyScale(viewportEl: HTMLElement | null) {
+		if (!viewportEl) return 1;
 
 		const viewportRect = viewportEl.getBoundingClientRect();
+
+		// NOTE: because `main` scrolls, these rects are still viewport-based; that's fine for scale math.
 		const naturalCenterY = viewportRect.top + window.innerHeight / 2;
 
-		if (!isFixedState && naturalCenterY <= TEXT_FIX_TOP_PX) setFixedFn(true);
-		else if (isFixedState && naturalCenterY > TEXT_FIX_TOP_PX) setFixedFn(false);
-
 		const distFromLock = naturalCenterY - TEXT_FIX_TOP_PX;
+
 		if (distFromLock <= 0) return TARGET_SCALE;
+
 		if (distFromLock < SHRINK_RANGE_PX) {
 			const progress = 1 - distFromLock / SHRINK_RANGE_PX;
 			return lerp(1, TARGET_SCALE, progress);
 		}
+
 		return 1;
 	}
 
@@ -629,106 +590,46 @@
 
 	function updateScroll() {
 		if (!scrollParent) return;
+
 		pageScrollTop = scrollParent.scrollTop;
 		const vH = scrollParent.clientHeight;
 
-		// 1. Logo
+		// 1. Logo (progress only; docking is pure sticky CSS)
 		introState.progress = computeTrackProgress(introState.trackEl, vH);
-		if (!introState.isFixed && introState.progress >= FIX_ON_P) introState.isFixed = true;
-		if (introState.isFixed && introState.progress <= FIX_OFF_P) introState.isFixed = false;
 
-		// 2. Track 1
+		// 2. Track 1 (reveal + scale only)
 		track1.revealP = computeTrackProgress(track1.msgEl, vH);
 		const prog1 = clamp01((track1.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
 		track1.visibleWordIndex = Math.floor(prog1 * (ESTIMATED_WORDS + 2)) - 1;
+		track1.textScale = computeStickyScale(track1.viewportEl);
 
-		track1.textScale = handleStickyText(
-			track1.viewportEl,
-			track1.sentinelEl,
-			track1.isFixed,
-			(v) => {
-				track1.isFixed = v;
-				updateFixedState(track1, window.innerWidth / 2);
-			},
-			track1.textScale
-		);
-
-		// 3. Grid 1 Docking
-		if (grid1.sentinelEl) {
-			const rect = grid1.sentinelEl.getBoundingClientRect();
-			if (!grid1.isFixed && rect.top <= GRID_FIX_TOP_PX) grid1.isFixed = true;
-			else if (grid1.isFixed && rect.top > GRID_FIX_TOP_PX) grid1.isFixed = false;
-		}
-
-		// 4. Filler 1
+		// 3. Filler 1 (opacity fade)
 		if (grid1.fillerEl) {
 			const rect = grid1.fillerEl.getBoundingClientRect();
 			grid1.fillerP = clamp01((window.innerHeight - rect.top) / window.innerHeight);
 		}
 
-		// 5. Track 2
+		// 4. Track 2
 		track2.revealP = computeTrackProgress(track2.msgEl, vH);
 		const prog2 = clamp01((track2.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
 		track2.visibleWordIndex = Math.floor(prog2 * (ESTIMATED_WORDS + 2)) - 1;
+		track2.textScale = computeStickyScale(track2.viewportEl);
 
-		track2.textScale = handleStickyText(
-			track2.viewportEl,
-			track2.sentinelEl,
-			track2.isFixed,
-			(v) => {
-				track2.isFixed = v;
-				updateFixedState(track2, window.innerWidth / 2);
-			},
-			track2.textScale
-		);
-
-		// 6. Grid 2 Docking
-		if (grid2.sentinelEl) {
-			const rect = grid2.sentinelEl.getBoundingClientRect();
-			if (!grid2.isFixed && rect.top <= GRID_FIX_TOP_PX) grid2.isFixed = true;
-			else if (grid2.isFixed && rect.top > GRID_FIX_TOP_PX) grid2.isFixed = false;
-		}
-
-		// 7. Filler 2
+		// 5. Filler 2
 		if (grid2.fillerEl) {
 			const rect = grid2.fillerEl.getBoundingClientRect();
 			grid2.fillerP = clamp01((window.innerHeight - rect.top) / window.innerHeight);
 		}
 
-		// 8. Track 3
+		// 6. Track 3
 		track3.revealP = computeTrackProgress(track3.msgEl, vH);
 		const prog3 = clamp01((track3.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
 		track3.visibleWordIndex = Math.floor(prog3 * (ESTIMATED_WORDS + 2)) - 1;
-
-		track3.textScale = handleStickyText(
-			track3.viewportEl,
-			track3.sentinelEl,
-			track3.isFixed,
-			(v) => {
-				track3.isFixed = v;
-				updateFixedState(track3, window.innerWidth / 2);
-			},
-			track3.textScale
-		);
-
-		// 9. Form Docking
-		if (formState.sentinelEl) {
-			const rect = formState.sentinelEl.getBoundingClientRect();
-			if (!formState.isFixed && rect.top <= FORM_FIX_TOP_PX) formState.isFixed = true;
-			else if (formState.isFixed && rect.top > FORM_FIX_TOP_PX) formState.isFixed = false;
-		}
+		track3.textScale = computeStickyScale(track3.viewportEl);
 	}
 
 	function handleResize() {
 		updateScroll();
-		const winCenter = window.innerWidth / 2;
-		if (introState.isFixed) introState.fixedLeftPx = winCenter;
-		if (track1.isFixed) track1.fixedLeftPx = winCenter;
-		if (track2.isFixed) track2.fixedLeftPx = winCenter;
-		if (track3.isFixed) track3.fixedLeftPx = winCenter;
-		if (grid1.isFixed) grid1.fixedLeftPx = winCenter;
-		if (grid2.isFixed) grid2.fixedLeftPx = winCenter;
-		if (formState.isFixed) formState.fixedLeftPx = winCenter;
 	}
 
 	let bubbleEl: HTMLElement | null = null;
@@ -741,8 +642,8 @@
 	onMount(() => {
 		if (!containerEl || !bubbleEl) return;
 
-		const bounds = containerEl.getBoundingClientRect();
-		function onMouseMove(event: MouseEvent) {
+		function onMouseMoveBubble(event: MouseEvent) {
+			const bounds = containerEl!.getBoundingClientRect();
 			targetX = event.clientX - bounds.left;
 			targetY = event.clientY - bounds.top;
 		}
@@ -752,13 +653,11 @@
 			const ease = 0.1;
 			currentX += (targetX - currentX) * ease;
 			currentY += (targetY - currentY) * ease;
-			if (bubbleEl) {
-				bubbleEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
-			}
+			bubbleEl!.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
 			bubbleRaf = requestAnimationFrame(animateBubble);
 		}
 
-		window.addEventListener('mousemove', onMouseMove);
+		window.addEventListener('mousemove', onMouseMoveBubble);
 		bubbleRaf = requestAnimationFrame(animateBubble);
 
 		scrollParent?.addEventListener('scroll', onScroll, { passive: true });
@@ -768,7 +667,7 @@
 		updateScroll();
 
 		return () => {
-			window.removeEventListener('mousemove', onMouseMove);
+			window.removeEventListener('mousemove', onMouseMoveBubble);
 			scrollParent?.removeEventListener('scroll', onScroll);
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('mousemove', handleMouseMove);
@@ -776,6 +675,7 @@
 		};
 	});
 
+	// --- Intro morph vars (same data, but sticky handles pinning) ---
 	$: logoY = `${(1 - introState.progress) * 50}%`;
 	$: logoTranslateY = `${(1 - introState.progress) * -50}%`;
 	$: logoTopPx = `${introState.progress * INTRO_DISTANCE_PX}px`;
@@ -786,19 +686,10 @@
 	$: restFontPx = `${lerp(START_FONT, END_FONT, morphT).toFixed(2)}px`;
 	$: restLetterPx = `${lerp(START_LETTER, END_LETTER, morphT).toFixed(2)}px`;
 
-	const getCenter = () => (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
-
-	$: fixedLeftStyle = `${introState.fixedLeftPx || getCenter()}px`;
-	$: textFixedLeftStyle1 = `${track1.fixedLeftPx || getCenter()}px`;
-	$: textFixedLeftStyle2 = `${track2.fixedLeftPx || getCenter()}px`;
-	$: textFixedLeftStyle3 = `${track3.fixedLeftPx || getCenter()}px`;
-
-	$: gridFixedLeftStyle = `${grid1.fixedLeftPx || getCenter()}px`;
-	$: gridFixedLeftStyle2 = `${grid2.fixedLeftPx || getCenter()}px`;
-	$: formFixedLeftStyle = `${formState.fixedLeftPx || getCenter()}px`;
-
+	// Background fade
 	$: bgFxOpacity = 1 - clamp01(pageScrollTop / BG_FADE_PX);
 
+	// Fade previous sections based on filler progress
 	$: fadeOutOld1 = clamp01((grid1.fillerP - 0.4) * 2.5);
 	$: previousContentOpacity1 = 1 - fadeOutOld1;
 
@@ -823,12 +714,14 @@
 					<feComposite in="SourceGraphic" in2="goo" operator="atop" />
 				</filter>
 			</svg>
+
 			<div class="gradients-container">
 				<div class="g1"></div>
 				<div class="g2"></div>
 				<div class="g3"></div>
 				<div class="g4"></div>
 				<div class="g5"></div>
+
 				<div class="interactive" bind:this={bubbleEl}>
 					<div class="core"></div>
 				</div>
@@ -841,7 +734,6 @@
 			<div
 				bind:this={introState.dockEl}
 				class="logo-dock"
-				class:fixed={introState.isFixed}
 				style="
           --logo-y: {logoY};
           --logo-ty: {logoTranslateY};
@@ -849,22 +741,23 @@
           --gap: {logoGapPx};
           --rest-font: {restFontPx};
           --rest-letter: {restLetterPx};
-          --fixed-left: {fixedLeftStyle};
         "
 			>
 				<div class="logo-mark">
 					<div
 						class="origin-logo"
 						style="
-                        --mx: {$mouseCoords.x};
-                        --my: {$mouseCoords.y};
-                    "
+              --mx: {$mouseCoords.x};
+              --my: {$mouseCoords.y};
+            "
 					>
 						<div class="inner-circle"></div>
 					</div>
+
 					<div class="rest-of-word">ORIGIN</div>
 				</div>
 			</div>
+
 			<div class="prompt" style="opacity: {promptOpacity}">Scroll BELOW to access the site</div>
 		</div>
 	</section>
@@ -879,37 +772,42 @@
 					{#each cloudItems as item (item.id)}
 						<div
 							class="cloud-item"
-							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
-								0.01 *
-								100}vh, 0) translate3d(calc(var(--mouse-x) * {item.depth} * -100px), calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)), 0); opacity: {item.opacity}; font-size: calc(1rem * {item.scale});"
+							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
+                translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
+                            calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
+                            0);
+                opacity: {item.opacity};
+                font-size: calc(1rem * {item.scale});"
 						>
 							{item.text}
 						</div>
 					{/each}
 				</div>
+
 				<div bind:this={track1.sentinelEl} class="text-sentinel"></div>
+
 				<div
 					bind:this={track1.dockEl}
 					class="text-dock"
-					class:fixed={track1.isFixed}
 					style="
-            --text-fixed-left: {textFixedLeftStyle1};
             --text-fix-top: {TEXT_FIX_TOP_PX}px;
             --fs-medium: {dynamicMedium}px;
             --fs-large: {dynamicLarge}px;
             --text-scale: {track1.textScale};
           "
 				>
-					<div class="revision-container" class:fading={isFading}>
-						{#each lines1 as line (line.text)}
-							<div class="line {line.size}">
-								{#each line.words as word (word.globalIndex)}
-									<span class="word" class:active={word.globalIndex <= track1.visibleWordIndex}
-										>{word.text}&nbsp;</span
-									>
-								{/each}
-							</div>
-						{/each}
+					<div class="text-inner">
+						<div class="revision-container" class:fading={isFading}>
+							{#each lines1 as line (line.text)}
+								<div class="line {line.size}">
+									{#each line.words as word (word.globalIndex)}
+										<span class="word" class:active={word.globalIndex <= track1.visibleWordIndex}>
+											{word.text}&nbsp;
+										</span>
+									{/each}
+								</div>
+							{/each}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -917,12 +815,8 @@
 
 		<section class="content">
 			<div bind:this={grid1.sentinelEl} class="grid-sentinel"></div>
-			<div
-				bind:this={grid1.dockEl}
-				class="grid-dock"
-				class:fixed={grid1.isFixed}
-				style="--grid-fixed-left: {gridFixedLeftStyle}; --grid-fix-top: {GRID_FIX_TOP_PX}px;"
-			>
+
+			<div bind:this={grid1.dockEl} class="grid-dock" style="--grid-fix-top: {GRID_FIX_TOP_PX}px;">
 				<div class="grid-wrapper">
 					<div class="grid-cloud" role="button" tabindex="0">
 						{#each gridCells as c, i (c.label)}
@@ -944,6 +838,7 @@
 								on:keydown={() => handleCellClick(i)}
 							>
 								<canvas class="pixel-bg"></canvas>
+
 								<div class="cell-content-wrapper">
 									<span class="prefix">I am {getArticle(c.label)}</span>
 									<span class="cell-label">{c.label}</span>
@@ -953,6 +848,7 @@
 					</div>
 				</div>
 			</div>
+
 			<div class="filler" bind:this={grid1.fillerEl}></div>
 		</section>
 	</div>
@@ -967,37 +863,42 @@
 					{#each cloudItems as item (item.id)}
 						<div
 							class="cloud-item"
-							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
-								0.01 *
-								100}vh, 0) translate3d(calc(var(--mouse-x) * {item.depth} * -100px), calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)), 0); opacity: {item.opacity}; font-size: calc(1rem * {item.scale});"
+							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
+                translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
+                            calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
+                            0);
+                opacity: {item.opacity};
+                font-size: calc(1rem * {item.scale});"
 						>
 							{item.text}
 						</div>
 					{/each}
 				</div>
+
 				<div bind:this={track2.sentinelEl} class="text-sentinel"></div>
+
 				<div
 					bind:this={track2.dockEl}
 					class="text-dock"
-					class:fixed={track2.isFixed}
 					style="
-            --text-fixed-left: {textFixedLeftStyle2};
             --text-fix-top: {TEXT_FIX_TOP_PX}px;
             --fs-medium: {dynamicMedium}px;
             --fs-large: {dynamicLarge}px;
             --text-scale: {track2.textScale};
-            "
+          "
 				>
-					<div class="revision-container">
-						{#each lines2 as line (line.text)}
-							<div class="line {line.size}">
-								{#each line.words as word (word.globalIndex)}
-									<span class="word" class:active={word.globalIndex <= track2.visibleWordIndex}
-										>{word.text}&nbsp;</span
-									>
-								{/each}
-							</div>
-						{/each}
+					<div class="text-inner">
+						<div class="revision-container">
+							{#each lines2 as line (line.text)}
+								<div class="line {line.size}">
+									{#each line.words as word (word.globalIndex)}
+										<span class="word" class:active={word.globalIndex <= track2.visibleWordIndex}>
+											{word.text}&nbsp;
+										</span>
+									{/each}
+								</div>
+							{/each}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -1005,12 +906,8 @@
 
 		<section class="content">
 			<div bind:this={grid2.sentinelEl} class="grid-sentinel"></div>
-			<div
-				bind:this={grid2.dockEl}
-				class="grid-dock"
-				class:fixed={grid2.isFixed}
-				style="--grid-fixed-left: {gridFixedLeftStyle2}; --grid-fix-top: {GRID_FIX_TOP_PX}px;"
-			>
+
+			<div bind:this={grid2.dockEl} class="grid-dock" style="--grid-fix-top: {GRID_FIX_TOP_PX}px;">
 				<div class="grid-wrapper">
 					<div class="grid-uniform">
 						{#each breakthroughCells as item (item.title)}
@@ -1020,6 +917,7 @@
 								use:pixelHover={{ gap: 6, speed: 0.035, colors: item.colors }}
 							>
 								<canvas class="pixel-bg"></canvas>
+
 								<div class="cell-content">
 									<div class="cell-title">{item.title}</div>
 									<div class="cell-desc">{item.desc}</div>
@@ -1029,6 +927,7 @@
 					</div>
 				</div>
 			</div>
+
 			<div class="filler" bind:this={grid2.fillerEl}></div>
 		</section>
 	</div>
@@ -1042,37 +941,42 @@
 				{#each cloudItems as item (item.id)}
 					<div
 						class="cloud-item"
-						style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
-							0.01 *
-							100}vh, 0) translate3d(calc(var(--mouse-x) * {item.depth} * -100px), calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)), 0); opacity: {item.opacity}; font-size: calc(1rem * {item.scale});"
+						style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
+              translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
+                          calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
+                          0);
+              opacity: {item.opacity};
+              font-size: calc(1rem * {item.scale});"
 					>
 						{item.text}
 					</div>
 				{/each}
 			</div>
+
 			<div bind:this={track3.sentinelEl} class="text-sentinel"></div>
+
 			<div
 				bind:this={track3.dockEl}
 				class="text-dock"
-				class:fixed={track3.isFixed}
 				style="
-          --text-fixed-left: {textFixedLeftStyle3};
           --text-fix-top: {TEXT_FIX_TOP_PX}px;
           --fs-medium: {dynamicMedium}px;
           --fs-large: {dynamicLarge}px;
           --text-scale: {track3.textScale};
         "
 			>
-				<div class="revision-container">
-					{#each lines3 as line (line.text)}
-						<div class="line {line.size}">
-							{#each line.words as word (word.globalIndex)}
-								<span class="word" class:active={word.globalIndex <= track3.visibleWordIndex}
-									>{word.text}&nbsp;</span
-								>
-							{/each}
-						</div>
-					{/each}
+				<div class="text-inner">
+					<div class="revision-container">
+						{#each lines3 as line (line.text)}
+							<div class="line {line.size}">
+								{#each line.words as word (word.globalIndex)}
+									<span class="word" class:active={word.globalIndex <= track3.visibleWordIndex}>
+										{word.text}&nbsp;
+									</span>
+								{/each}
+							</div>
+						{/each}
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1080,11 +984,11 @@
 
 	<section class="content footer-content">
 		<div bind:this={formState.sentinelEl} class="form-sentinel"></div>
+
 		<div
 			bind:this={formState.dockEl}
 			class="form-dock"
-			class:fixed={formState.isFixed}
-			style="--form-fixed-left: {formFixedLeftStyle}; --form-fix-top: {FORM_FIX_TOP_PX}px;"
+			style="--form-fix-top: {FORM_FIX_TOP_PX}px;"
 		>
 			<div class="form-container">
 				<div class="contact-form">
@@ -1094,6 +998,7 @@
 				</div>
 			</div>
 		</div>
+
 		<div class="filler" style="height: 50vh;"></div>
 	</section>
 </main>
@@ -1107,7 +1012,7 @@
 	.text-dock,
 	.grid-dock,
 	.form-dock {
-		will-change: transform, top, left;
+		will-change: transform, top;
 	}
 
 	main {
@@ -1118,17 +1023,21 @@
 		position: relative;
 		background: #09090b;
 	}
+
+	/* Background layer is still fixed (not part of docking logic) */
 	.bg-fx {
 		position: fixed;
 		inset: 0;
 		z-index: 0;
 		pointer-events: none;
 	}
+
 	.intro-track {
 		position: relative;
 		height: 180vh;
 		z-index: 2;
 	}
+
 	.intro-sticky {
 		position: sticky;
 		top: 0;
@@ -1138,22 +1047,20 @@
 		display: grid;
 		place-items: center;
 	}
+
+	/* STICKY-ONLY LOGO DOCK (no fixed) */
 	.logo-dock {
-		position: absolute;
-		left: 50%;
-		top: var(--logo-y);
-		transform: translate(-50%, var(--logo-ty));
-		padding-top: var(--logo-top);
+		position: sticky;
+		top: 40px;
 		z-index: 999;
 		pointer-events: none;
+		display: flex;
+		justify-content: center;
+
+		/* Keep your original morph motion via CSS vars */
+		transform: translateY(calc(var(--logo-top)));
 	}
-	.logo-dock.fixed {
-		position: fixed;
-		top: 40px;
-		left: var(--fixed-left);
-		transform: translate(-50%, 0);
-		padding-top: 0;
-	}
+
 	.prompt {
 		position: absolute;
 		left: 50%;
@@ -1169,6 +1076,7 @@
 		color: rgba(255, 255, 255, 0.8);
 		animation: promptFade 1.6s ease-in-out infinite;
 	}
+
 	@keyframes promptFade {
 		0%,
 		100% {
@@ -1178,12 +1086,14 @@
 			color: rgba(255, 255, 255, 0.3);
 		}
 	}
+
 	.message-track {
 		position: relative;
 		height: 350vh;
 		width: 100%;
 		z-index: 1;
 	}
+
 	.sticky-viewport {
 		position: sticky;
 		top: 0;
@@ -1191,6 +1101,7 @@
 		width: 100%;
 		overflow: hidden;
 	}
+
 	.cloud-container {
 		position: absolute;
 		inset: 0;
@@ -1203,6 +1114,7 @@
 		overflow: hidden;
 		perspective: 1000px;
 	}
+
 	.cloud-item {
 		position: absolute;
 		color: #a3a3a3;
@@ -1212,6 +1124,7 @@
 		white-space: nowrap;
 		transition: opacity 0.5s ease;
 	}
+
 	.text-sentinel {
 		position: absolute;
 		left: 50%;
@@ -1222,24 +1135,26 @@
 		opacity: 0;
 		pointer-events: none;
 	}
+
+	/* STICKY-ONLY TEXT DOCK (no fixed) */
 	.text-dock {
-		position: absolute;
-		left: 50%;
-		top: 50%;
-		transform: translate(-50%, -50%) scale(var(--text-scale, 1));
+		position: sticky;
+		top: var(--text-fix-top);
 		z-index: 10;
-		pointer-events: none;
 		width: 100%;
 		display: flex;
 		justify-content: center;
+		pointer-events: none;
 	}
-	.text-dock.fixed {
-		position: fixed;
-		left: var(--text-fixed-left);
-		top: var(--text-fix-top);
-		transform: translate(-50%, -50%) scale(var(--text-scale, 1));
-		z-index: 9999;
+
+	.text-inner {
+		width: 100%;
+		display: flex;
+		justify-content: center;
+		transform: scale(var(--text-scale, 1));
+		transform-origin: top center;
 	}
+
 	.revision-container {
 		padding: 64px 24px;
 		color: white;
@@ -1252,59 +1167,64 @@
 			filter 0.8s ease,
 			transform 0.8s ease;
 	}
+
 	.revision-container.fading {
 		opacity: 0;
 		filter: blur(12px);
 		transform: scale(0.95);
 	}
+
 	.line {
 		display: block;
 		text-align: center;
 		line-height: 1.2;
 		font-weight: 600;
 	}
+
 	.line.medium .word {
 		font-size: var(--fs-medium);
 		font-weight: 300;
 		transition: opacity 0.2s;
 	}
+
 	.line.larger .word {
 		font-size: var(--fs-large);
 		font-weight: 400;
 		transition: opacity 0.2s;
 	}
+
 	.word {
 		opacity: 0;
 		display: inline-block;
 	}
+
 	.word.active {
 		opacity: 1;
 	}
+
 	.grid-sentinel {
 		width: 100%;
 		height: 1px;
 	}
+
+	/* STICKY-ONLY GRID DOCK (no fixed) */
 	.grid-dock {
-		position: relative;
-		width: 100%;
-		z-index: 5;
-	}
-	.grid-dock.fixed {
-		position: fixed;
+		position: sticky;
 		top: var(--grid-fix-top);
-		left: var(--grid-fixed-left);
-		transform: translateX(-50%);
-		width: 100%;
-		max-width: 1000px;
-		padding: 0 24px;
-		box-sizing: border-box;
 		z-index: 9999;
+		width: 100%;
 		pointer-events: none;
+		display: flex;
+		justify-content: center;
 	}
+
 	.grid-wrapper {
 		display: flex;
 		justify-content: center;
 		width: 100%;
+		max-width: 1000px;
+		padding: 0 24px;
+		box-sizing: border-box;
 		pointer-events: auto;
 	}
 
@@ -1401,6 +1321,7 @@
 		user-select: none;
 		line-height: 1.3;
 	}
+
 	.uniform-cell {
 		min-height: 140px;
 		display: flex;
@@ -1410,10 +1331,12 @@
 		padding: 24px;
 		text-align: center;
 	}
+
 	.cell-content {
 		position: relative;
 		z-index: 2;
 	}
+
 	.cell-title {
 		font-weight: 600;
 		font-size: 1.1rem;
@@ -1421,22 +1344,26 @@
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
 	}
+
 	.cell-desc {
 		font-size: 0.9rem;
 		color: rgba(255, 255, 255, 0.6);
 		line-height: 1.4;
 	}
+
 	.cell.fading {
 		opacity: 0;
 		transform: scale(0.9);
 		pointer-events: none;
 		filter: blur(8px);
 	}
+
+	/* Was fixed; now sticky-only "spotlight" (no fixed) */
 	.cell.is-chosen {
-		position: fixed;
+		position: sticky;
 		top: 200px;
 		left: 50%;
-		transform: translate(-50%, 0) scale(1.2);
+		transform: translateX(-50%) scale(1.2);
 		z-index: 10000;
 		margin: 0;
 		width: 300px;
@@ -1445,6 +1372,7 @@
 		background: rgba(0, 0, 0, 0.8);
 		box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 	}
+
 	.cell:not(.selected-mode):hover {
 		background: rgba(255, 255, 255, 0.08);
 		border-color: var(--active-color, rgba(255, 255, 255, 0.9));
@@ -1452,6 +1380,7 @@
 		box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 		z-index: 10;
 	}
+
 	.pixel-bg {
 		position: absolute;
 		inset: 0;
@@ -1461,11 +1390,13 @@
 		pointer-events: none;
 		display: block;
 	}
+
 	:root {
 		--logo-color: white;
 		--logo-size: 50px;
 		--border-thickness: calc(var(--logo-size) / 10);
 	}
+
 	.logo-mark {
 		display: flex;
 		gap: var(--gap);
@@ -1473,11 +1404,13 @@
 		align-items: center;
 		padding: 32px;
 	}
+
 	.rest-of-word {
 		font-size: var(--rest-font);
 		letter-spacing: var(--rest-letter);
 		color: white;
 	}
+
 	.origin-logo {
 		width: var(--logo-size);
 		height: var(--logo-size);
@@ -1486,6 +1419,7 @@
 		box-sizing: border-box;
 		position: relative;
 	}
+
 	.origin-logo .inner-circle {
 		width: 40%;
 		height: 40%;
@@ -1505,6 +1439,7 @@
 		transition: transform 0.05s linear;
 		will-change: transform;
 	}
+
 	.content {
 		position: relative;
 		z-index: 2;
@@ -1514,9 +1449,11 @@
 		margin: 0 auto;
 		min-height: 200vh;
 	}
+
 	.filler {
 		height: 100vh;
 	}
+
 	.back-g {
 		width: 100vw;
 		height: 100vh;
@@ -1527,6 +1464,7 @@
 		background: #101010;
 		box-shadow: inset 0 0 200px 30px black;
 	}
+
 	@media (max-width: 768px) {
 		.cell.cloud-cell {
 			min-width: 100%;
@@ -1535,36 +1473,36 @@
 			grid-template-columns: 1fr;
 		}
 	}
+
 	.form-sentinel {
 		width: 100%;
 		height: 1px;
 	}
+
+	/* STICKY-ONLY FORM DOCK (no fixed) */
 	.form-dock {
-		position: relative;
-		width: 100%;
-		z-index: 5;
-	}
-	.form-dock.fixed {
-		position: fixed;
+		position: sticky;
 		top: var(--form-fix-top);
-		left: var(--form-fixed-left);
-		transform: translateX(-50%);
-		width: 100%;
-		max-width: 1000px;
-		padding: 0 24px;
-		box-sizing: border-box;
 		z-index: 9999;
+		width: 100%;
+		display: flex;
+		justify-content: center;
 	}
+
 	.form-container {
 		width: 100%;
 		max-width: 500px;
 		margin: 0 auto;
+		padding: 0 24px;
+		box-sizing: border-box;
 	}
+
 	.contact-form {
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
 	}
+
 	.contact-form input,
 	.contact-form textarea {
 		width: 100%;
@@ -1578,12 +1516,14 @@
 		backdrop-filter: blur(10px);
 		transition: all 0.3s ease;
 	}
+
 	.contact-form input:focus,
 	.contact-form textarea:focus {
 		outline: none;
 		background: rgba(255, 255, 255, 0.1);
 		border-color: rgba(255, 255, 255, 0.6);
 	}
+
 	.contact-form button {
 		margin-top: 16px;
 		background: white;
@@ -1598,18 +1538,22 @@
 		letter-spacing: 0.1em;
 		transition: all 0.2s ease;
 	}
+
 	.contact-form button:hover {
 		transform: translateY(-2px);
 		box-shadow: 0 10px 20px rgba(255, 255, 255, 0.2);
 	}
+
 	.contact-form button:active {
 		transform: scale(0.98);
 	}
+
 	:root {
 		--color-blue-rgb: 96, 165, 250;
 		--color-pink-rgb: 232, 121, 249;
 		--color-green-rgb: 94, 234, 212;
 	}
+
 	.gradient-bg {
 		width: 100%;
 		height: 100%;
@@ -1618,10 +1562,12 @@
 		z-index: 0;
 		overflow: hidden;
 	}
+
 	svg {
 		width: 0;
 		height: 0;
 	}
+
 	.gradients-container {
 		filter: url(#goo) blur(30px);
 		width: 100%;
@@ -1630,6 +1576,7 @@
 		overflow: hidden;
 		opacity: 0.3;
 	}
+
 	.g1,
 	.g2,
 	.g3,
@@ -1647,6 +1594,7 @@
 		animation-timing-function: ease-in-out;
 		will-change: transform;
 	}
+
 	.g1 {
 		background: radial-gradient(
 			circle,
@@ -1656,6 +1604,7 @@
 		animation: moveVertical 20s infinite;
 		transform-origin: center;
 	}
+
 	.g2 {
 		background: radial-gradient(
 			circle,
@@ -1665,6 +1614,7 @@
 		animation: moveInCircle 18s reverse infinite;
 		transform-origin: 25% 50%;
 	}
+
 	.g3 {
 		background: radial-gradient(
 			circle,
@@ -1674,6 +1624,7 @@
 		animation: moveInCircle 30s infinite;
 		transform-origin: 75% 50%;
 	}
+
 	.g4 {
 		background: radial-gradient(
 			circle,
@@ -1683,6 +1634,7 @@
 		animation: moveHorizontal 25s infinite;
 		transform-origin: 35% 50%;
 	}
+
 	.g5 {
 		background: radial-gradient(
 			circle,
@@ -1694,6 +1646,7 @@
 		animation: moveInCircle 22s infinite;
 		transform-origin: 20% 75%;
 	}
+
 	.interactive {
 		width: 250px;
 		height: 250px;
@@ -1713,6 +1666,7 @@
 		border: 1px solid rgba(var(--color-blue-rgb), 0.4);
 		box-shadow: 0 0 40px rgba(var(--color-blue-rgb), 0.3);
 	}
+
 	.interactive .core {
 		width: 30px;
 		height: 30px;
@@ -1725,6 +1679,7 @@
 		transform: translate(-50%, -50%);
 		pointer-events: none;
 	}
+
 	@keyframes moveInCircle {
 		0% {
 			transform: translate(-50%, -50%) rotate(0deg);
@@ -1736,6 +1691,7 @@
 			transform: translate(-50%, -50%) rotate(360deg);
 		}
 	}
+
 	@keyframes moveVertical {
 		0% {
 			transform: translate(-50%, -40%);
@@ -1747,6 +1703,7 @@
 			transform: translate(-50%, -40%);
 		}
 	}
+
 	@keyframes moveHorizontal {
 		0% {
 			transform: translate(-40%, -50%);
