@@ -1,6 +1,69 @@
-<script>
+<script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import { spring } from 'svelte/motion';
+
+	// --- TYPE DEFINITIONS ---
+	interface Pixel {
+		x: number;
+		y: number;
+		color: string;
+		size: number;
+		minSize: number;
+		maxSizeInteger: number;
+		maxSize: number;
+		sizeStep: number;
+		shimmer: boolean;
+		reverse: boolean;
+		counter: number;
+		counterStep: number;
+		delay: number;
+		idle: boolean;
+		spd: number;
+	}
+
+	interface HoverOptions {
+		gap?: number;
+		speed?: number;
+		colors?: string[];
+		noFocus?: boolean;
+	}
+
+	// UPDATED: Standardized 'isFixed' across all interfaces
+	interface TrackState {
+		msgEl: HTMLElement | null;
+		viewportEl: HTMLElement | null;
+		dockEl: HTMLElement | null;
+		sentinelEl: HTMLElement | null;
+		revealP: number;
+		visibleWordIndex: number;
+		isFixed: boolean; // Renamed from isTextFixed
+		textScale: number;
+		fixedLeftPx: number;
+	}
+
+	interface GridState {
+		dockEl: HTMLElement | null;
+		sentinelEl: HTMLElement | null;
+		fillerEl: HTMLElement | null;
+		isFixed: boolean;
+		fixedLeftPx: number;
+		fillerP: number;
+	}
+
+	interface IntroState {
+		trackEl: HTMLElement | null;
+		dockEl: HTMLElement | null;
+		progress: number;
+		isFixed: boolean;
+		fixedLeftPx: number;
+	}
+
+	interface FormState {
+		dockEl: HTMLElement | null;
+		sentinelEl: HTMLElement | null;
+		isFixed: boolean;
+		fixedLeftPx: number;
+	}
 
 	// ---------------------------------------------------------
 	// ✅ OPTIMIZED PIXEL HOVER ACTION
@@ -9,7 +72,7 @@
 		typeof window !== 'undefined' &&
 		window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
-	function pixelHover(node, opts) {
+	function pixelHover(node: HTMLElement, opts: HoverOptions) {
 		const {
 			gap = 6,
 			speed = 0.035,
@@ -19,17 +82,20 @@
 
 		const canvas = node.querySelector('canvas');
 		if (!canvas) return;
-		const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true }); // optimize context
+		const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
 
-		let pixels = [];
+		if (!ctx) return;
+
+		let pixels: Pixel[] = [];
 		let raf = 0;
 		let hovering = false;
 		let width = 0;
 		let height = 0;
 
-		const rand = (min, max) => Math.random() * (max - min) + min;
+		const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 
 		function resize() {
+			if (!canvas) return;
 			// Read geometry once
 			const r = canvas.getBoundingClientRect();
 			width = Math.max(1, Math.floor(r.width));
@@ -73,13 +139,15 @@
 			}
 		}
 
-		function drawPixel(p) {
+		function drawPixel(p: Pixel) {
+			if (!ctx) return;
 			const centerOffset = p.maxSizeInteger * 0.5 - p.size * 0.5;
 			ctx.fillStyle = p.color;
 			ctx.fillRect(p.x + centerOffset, p.y + centerOffset, p.size, p.size);
 		}
 
 		function step() {
+			if (!ctx) return;
 			ctx.clearRect(0, 0, width, height);
 			let allIdle = true;
 
@@ -164,10 +232,10 @@
 	// ---------------------------------------------------------
 	// CORE LOGIC
 	// ---------------------------------------------------------
-	let scrollParent;
+	let scrollParent: HTMLElement | null = null;
 
 	// Grouping State for cleaner management
-	let introState = {
+	let introState: IntroState = {
 		trackEl: null,
 		dockEl: null,
 		progress: 0,
@@ -175,43 +243,43 @@
 		fixedLeftPx: 0
 	};
 
-	let track1 = {
+	let track1: TrackState = {
 		msgEl: null,
 		viewportEl: null,
 		dockEl: null,
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isTextFixed: false,
+		isFixed: false, // Updated key
 		textScale: 1,
 		fixedLeftPx: 0
 	};
 
-	let track2 = {
+	let track2: TrackState = {
 		msgEl: null,
 		viewportEl: null,
 		dockEl: null,
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isTextFixed: false,
+		isFixed: false, // Updated key
 		textScale: 1,
 		fixedLeftPx: 0
 	};
 
-	let track3 = {
+	let track3: TrackState = {
 		msgEl: null,
 		viewportEl: null,
 		dockEl: null,
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isTextFixed: false,
+		isFixed: false, // Updated key
 		textScale: 1,
 		fixedLeftPx: 0
 	};
 
-	let grid1 = {
+	let grid1: GridState = {
 		dockEl: null,
 		sentinelEl: null,
 		fillerEl: null,
@@ -220,7 +288,7 @@
 		fillerP: 0
 	};
 
-	let grid2 = {
+	let grid2: GridState = {
 		dockEl: null,
 		sentinelEl: null,
 		fillerEl: null,
@@ -229,7 +297,7 @@
 		fillerP: 0
 	};
 
-	let formState = {
+	let formState: FormState = {
 		dockEl: null,
 		sentinelEl: null,
 		isFixed: false,
@@ -243,8 +311,8 @@
 	let mouseCoords = spring({ x: 0, y: 0 }, { stiffness: 0.05, damping: 0.25 });
 
 	// --- UTILS ---
-	const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
-	const lerp = (a, b, t) => a + (b - a) * t;
+	const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 	// --- CONFIG ---
 	const INTRO_DISTANCE_PX = 40;
@@ -272,8 +340,7 @@
 	const START_LETTER = 32;
 	const END_LETTER = 8;
 
-	function handleMouseMove(e) {
-		// Optimize: Don't update spring if page is hidden
+	function handleMouseMove(e: MouseEvent) {
 		if (document.hidden) return;
 		const x = e.clientX / window.innerWidth - 0.5;
 		const y = e.clientY / window.innerHeight - 0.5;
@@ -281,7 +348,11 @@
 	}
 
 	// Generic Fixer Helper
-	function updateFixedState(stateObj, windowCenter) {
+	// Now works for all state objects because they all use 'isFixed'
+	function updateFixedState(
+		stateObj: TrackState | IntroState | GridState | FormState,
+		windowCenter: number
+	) {
 		if (stateObj.isFixed) {
 			if (stateObj.dockEl) {
 				const rect = stateObj.dockEl.getBoundingClientRect();
@@ -293,22 +364,27 @@
 	}
 
 	// --- DATA PREPARATION ---
-	const topTextData = [
+	interface LineData {
+		size: string;
+		text: string;
+	}
+
+	const topTextData: LineData[] = [
 		{ size: 'medium', text: 'Chronic Disease' },
 		{ size: 'medium', text: 'lies in wait for all of us' },
 		{ size: 'larger', text: 'We all have the right to contribute' }
 	];
-	const bottomTextData = [
+	const bottomTextData: LineData[] = [
 		{ size: 'medium', text: 'Breakthroughs are being made' },
 		{ size: 'medium', text: 'against chronic disease' },
 		{ size: 'larger', text: 'Together we can ensure they make it to patients' }
 	];
-	const finalTextData = [
+	const finalTextData: LineData[] = [
 		{ size: 'medium', text: 'The fight against Chronic Disease' },
 		{ size: 'larger', text: 'starts with you' }
 	];
 
-	function prepareLines(dataLines, offsetCount = 0) {
+	function prepareLines(dataLines: LineData[], offsetCount = 0) {
 		let count = offsetCount;
 		const lines = dataLines.map((line) => {
 			const words = line.text
@@ -329,7 +405,6 @@
 	const { lines: lines3 } = prepareLines(finalTextData);
 
 	// --- GRID DATA ---
-	// (Included simplified Grid Data for brevity, same structure as yours)
 	const gridCells = [
 		{
 			label: 'Public Figure',
@@ -446,7 +521,7 @@
 	let selectedCellIndex = -1;
 	let isFading = false;
 
-	function handleCellClick(index) {
+	function handleCellClick(index: number) {
 		if (selectedCellIndex !== -1) return;
 		isFading = true;
 		setTimeout(() => {
@@ -505,6 +580,7 @@
 	];
 
 	let cloudItems = new Array(60).fill(0).map((_, i) => ({
+		id: i, // Added ID for Keyed Each
 		text: clinicalFacts[i % clinicalFacts.length],
 		x: Math.random() * 100,
 		y: Math.random() * 100,
@@ -514,17 +590,11 @@
 	}));
 
 	// --- SCROLL HANDLER (Optimized) ---
-	function computeTrackProgress(trackEl, viewportH) {
+	function computeTrackProgress(trackEl: HTMLElement | null, viewportH: number) {
 		if (!scrollParent || !trackEl) return 0;
-		// Minimize rect reads here if possible, but sticky tracks change position
 		const trackRect = trackEl.getBoundingClientRect();
 		// Optimization: Calculate offset relative to viewport without forcing parent recalc
 		const trackTop = trackRect.top; // Relative to viewport
-		const start = 0; // When track hits top of viewport? Logic seems to rely on scrollParent context
-
-		// Reverting to original logic but optimized inputs
-		// Original: const trackTopInScroll = trackRect.top - parentRect.top + scrollParent.scrollTop;
-		// Optimization: parentRect.top is likely 0 if full screen.
 		const trackTopInScroll = trackTop + pageScrollTop;
 
 		const end = trackTopInScroll + (trackEl.offsetHeight - viewportH);
@@ -534,7 +604,13 @@
 		return clamp01(denom > 0 ? (current - trackTopInScroll) / denom : 0);
 	}
 
-	function handleStickyText(viewportEl, sentinelEl, isFixedState, setFixedFn, currentScale) {
+	function handleStickyText(
+		viewportEl: HTMLElement | null,
+		sentinelEl: HTMLElement | null,
+		isFixedState: boolean,
+		setFixedFn: (val: boolean) => void,
+		currentScale: number
+	) {
 		if (!viewportEl || !sentinelEl) return currentScale;
 
 		// Read rect only once
@@ -583,9 +659,9 @@
 		track1.textScale = handleStickyText(
 			track1.viewportEl,
 			track1.sentinelEl,
-			track1.isTextFixed,
+			track1.isFixed, // UPDATED: uses isFixed
 			(v) => {
-				track1.isTextFixed = v;
+				track1.isFixed = v; // UPDATED
 				updateFixedState(track1, window.innerWidth / 2);
 			},
 			track1.textScale
@@ -612,9 +688,9 @@
 		track2.textScale = handleStickyText(
 			track2.viewportEl,
 			track2.sentinelEl,
-			track2.isTextFixed,
+			track2.isFixed, // UPDATED
 			(v) => {
-				track2.isTextFixed = v;
+				track2.isFixed = v; // UPDATED
 				updateFixedState(track2, window.innerWidth / 2);
 			},
 			track2.textScale
@@ -641,9 +717,9 @@
 		track3.textScale = handleStickyText(
 			track3.viewportEl,
 			track3.sentinelEl,
-			track3.isTextFixed,
+			track3.isFixed, // UPDATED
 			(v) => {
-				track3.isTextFixed = v;
+				track3.isFixed = v; // UPDATED
 				updateFixedState(track3, window.innerWidth / 2);
 			},
 			track3.textScale
@@ -662,44 +738,48 @@
 		updateScroll();
 		const winCenter = window.innerWidth / 2;
 		if (introState.isFixed) introState.fixedLeftPx = winCenter;
-		if (track1.isTextFixed) track1.fixedLeftPx = winCenter;
-		if (track2.isTextFixed) track2.fixedLeftPx = winCenter;
-		if (track3.isTextFixed) track3.fixedLeftPx = winCenter;
+		if (track1.isFixed) track1.fixedLeftPx = winCenter; // UPDATED
+		if (track2.isFixed) track2.fixedLeftPx = winCenter; // UPDATED
+		if (track3.isFixed) track3.fixedLeftPx = winCenter; // UPDATED
 		if (grid1.isFixed) grid1.fixedLeftPx = winCenter;
 		if (grid2.isFixed) grid2.fixedLeftPx = winCenter;
 		if (formState.isFixed) formState.fixedLeftPx = winCenter;
 	}
 
-	let bubbleEl, containerEl;
+	let bubbleEl: HTMLElement | null = null;
+	let containerEl: HTMLElement | null = null;
 	let targetX = 0,
 		targetY = 0,
 		currentX = 0,
 		currentY = 0;
 
-	onMount(async () => {
+	// UPDATED: onMount is no longer async
+	onMount(() => {
 		if (!containerEl || !bubbleEl) return;
 
 		const bounds = containerEl.getBoundingClientRect();
-		function onMouseMove(event) {
+		function onMouseMove(event: MouseEvent) {
 			targetX = event.clientX - bounds.left;
 			targetY = event.clientY - bounds.top;
 		}
 
-		let bubbleRaf;
+		let bubbleRaf: number;
 		function animateBubble() {
 			const ease = 0.1;
 			currentX += (targetX - currentX) * ease;
 			currentY += (targetY - currentY) * ease;
 			// 3d transform for GPU promotion
-			bubbleEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+			if (bubbleEl) {
+				bubbleEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+			}
 			bubbleRaf = requestAnimationFrame(animateBubble);
 		}
 
 		window.addEventListener('mousemove', onMouseMove);
 		bubbleRaf = requestAnimationFrame(animateBubble);
 
-		await tick();
-		scrollParent.addEventListener('scroll', onScroll, { passive: true });
+		// "bind:this" elements are available now, no need to await tick() inside onMount
+		scrollParent?.addEventListener('scroll', onScroll, { passive: true });
 		window.addEventListener('resize', handleResize);
 		window.addEventListener('mousemove', handleMouseMove);
 
@@ -708,7 +788,7 @@
 
 		return () => {
 			window.removeEventListener('mousemove', onMouseMove);
-			scrollParent.removeEventListener('scroll', onScroll);
+			scrollParent?.removeEventListener('scroll', onScroll);
 			window.removeEventListener('resize', handleResize);
 			window.removeEventListener('mousemove', handleMouseMove);
 			cancelAnimationFrame(bubbleRaf);
@@ -798,9 +878,9 @@
 					<div
 						class="origin-logo"
 						style="
-						--mx: {$mouseCoords.x};
-						--my: {$mouseCoords.y};
-					"
+                        --mx: {$mouseCoords.x};
+                        --my: {$mouseCoords.y};
+                    "
 					>
 						<div class="inner-circle"></div>
 					</div>
@@ -818,7 +898,7 @@
 					class="cloud-container"
 					style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track1.revealP};"
 				>
-					{#each cloudItems as item}
+					{#each cloudItems as item (item.id)}
 						<div
 							class="cloud-item"
 							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
@@ -829,11 +909,11 @@
 						</div>
 					{/each}
 				</div>
-				<div bind:this={track1.sentinelEl} class="text-sentinel" />
+				<div bind:this={track1.sentinelEl} class="text-sentinel"></div>
 				<div
 					bind:this={track1.dockEl}
 					class="text-dock"
-					class:fixed={track1.isTextFixed}
+					class:fixed={track1.isFixed}
 					style="
             --text-fixed-left: {textFixedLeftStyle1};
             --text-fix-top: {TEXT_FIX_TOP_PX}px;
@@ -843,9 +923,9 @@
           "
 				>
 					<div class="revision-container" class:fading={isFading}>
-						{#each lines1 as line}
+						{#each lines1 as line (line.text)}
 							<div class="line {line.size}">
-								{#each line.words as word}
+								{#each line.words as word (word.globalIndex)}
 									<span class="word" class:active={word.globalIndex <= track1.visibleWordIndex}
 										>{word.text}&nbsp;</span
 									>
@@ -867,8 +947,10 @@
 			>
 				<div class="grid-wrapper">
 					<div class="grid" role="button" tabindex="0">
-						{#each gridCells as c, i}
+						{#each gridCells as c, i (c.label)}
 							<div
+								role="button"
+								tabindex="0"
 								class="cell"
 								class:selected-mode={selectedCellIndex !== -1}
 								class:is-chosen={selectedCellIndex === i}
@@ -901,7 +983,7 @@
 					class="cloud-container"
 					style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track2.revealP};"
 				>
-					{#each cloudItems as item}
+					{#each cloudItems as item (item.id)}
 						<div
 							class="cloud-item"
 							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
@@ -912,11 +994,11 @@
 						</div>
 					{/each}
 				</div>
-				<div bind:this={track2.sentinelEl} class="text-sentinel" />
+				<div bind:this={track2.sentinelEl} class="text-sentinel"></div>
 				<div
 					bind:this={track2.dockEl}
 					class="text-dock"
-					class:fixed={track2.isTextFixed}
+					class:fixed={track2.isFixed}
 					style="
             --text-fixed-left: {textFixedLeftStyle2};
             --text-fix-top: {TEXT_FIX_TOP_PX}px;
@@ -926,9 +1008,9 @@
             "
 				>
 					<div class="revision-container">
-						{#each lines2 as line}
+						{#each lines2 as line (line.text)}
 							<div class="line {line.size}">
-								{#each line.words as word}
+								{#each line.words as word (word.globalIndex)}
 									<span class="word" class:active={word.globalIndex <= track2.visibleWordIndex}
 										>{word.text}&nbsp;</span
 									>
@@ -950,7 +1032,7 @@
 			>
 				<div class="grid-wrapper">
 					<div class="grid-uniform">
-						{#each breakthroughCells as item}
+						{#each breakthroughCells as item (item.title)}
 							<div
 								class="cell uniform-cell"
 								style="--active-color: {item.colors[0]}"
@@ -976,7 +1058,7 @@
 				class="cloud-container"
 				style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track3.revealP};"
 			>
-				{#each cloudItems as item}
+				{#each cloudItems as item (item.id)}
 					<div
 						class="cloud-item"
 						style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y *
@@ -987,11 +1069,11 @@
 					</div>
 				{/each}
 			</div>
-			<div bind:this={track3.sentinelEl} class="text-sentinel" />
+			<div bind:this={track3.sentinelEl} class="text-sentinel"></div>
 			<div
 				bind:this={track3.dockEl}
 				class="text-dock"
-				class:fixed={track3.isTextFixed}
+				class:fixed={track3.isFixed}
 				style="
           --text-fixed-left: {textFixedLeftStyle3};
           --text-fix-top: {TEXT_FIX_TOP_PX}px;
@@ -1001,9 +1083,9 @@
         "
 			>
 				<div class="revision-container">
-					{#each lines3 as line}
+					{#each lines3 as line (line.text)}
 						<div class="line {line.size}">
-							{#each line.words as word}
+							{#each line.words as word (word.globalIndex)}
 								<span class="word" class:active={word.globalIndex <= track3.visibleWordIndex}
 									>{word.text}&nbsp;</span
 								>
