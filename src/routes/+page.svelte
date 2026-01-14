@@ -28,7 +28,6 @@
 		noFocus?: boolean;
 	}
 
-	// UPDATED: Standardized 'isFixed' across all interfaces
 	interface TrackState {
 		msgEl: HTMLElement | null;
 		viewportEl: HTMLElement | null;
@@ -36,7 +35,7 @@
 		sentinelEl: HTMLElement | null;
 		revealP: number;
 		visibleWordIndex: number;
-		isFixed: boolean; // Renamed from isTextFixed
+		isFixed: boolean;
 		textScale: number;
 		fixedLeftPx: number;
 	}
@@ -66,7 +65,7 @@
 	}
 
 	// ---------------------------------------------------------
-	// ✅ OPTIMIZED PIXEL HOVER ACTION
+	// PIXEL HOVER ACTION
 	// ---------------------------------------------------------
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
@@ -96,12 +95,10 @@
 
 		function resize() {
 			if (!canvas) return;
-			// Read geometry once
 			const r = canvas.getBoundingClientRect();
 			width = Math.max(1, Math.floor(r.width));
 			height = Math.max(1, Math.floor(r.height));
 
-			// Set canvas size matching display size
 			if (canvas.width !== width || canvas.height !== height) {
 				canvas.width = width;
 				canvas.height = height;
@@ -151,7 +148,6 @@
 			ctx.clearRect(0, 0, width, height);
 			let allIdle = true;
 
-			// Standard for-loop is slightly faster than for-of for massive arrays
 			for (let i = 0; i < pixels.length; i++) {
 				const p = pixels[i];
 
@@ -190,7 +186,6 @@
 			if (!hovering && allIdle) {
 				cancelAnimationFrame(raf);
 				raf = 0;
-				// Final clear to ensure clean canvas
 				ctx.clearRect(0, 0, width, height);
 			} else {
 				raf = requestAnimationFrame(step);
@@ -213,7 +208,6 @@
 			if (!raf) step();
 		}
 
-		// Initial setup
 		resize();
 		ro.observe(node);
 		node.addEventListener('mouseenter', onEnter);
@@ -234,7 +228,6 @@
 	// ---------------------------------------------------------
 	let scrollParent: HTMLElement | null = null;
 
-	// Grouping State for cleaner management
 	let introState: IntroState = {
 		trackEl: null,
 		dockEl: null,
@@ -250,7 +243,7 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false, // Updated key
+		isFixed: false,
 		textScale: 1,
 		fixedLeftPx: 0
 	};
@@ -262,7 +255,7 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false, // Updated key
+		isFixed: false,
 		textScale: 1,
 		fixedLeftPx: 0
 	};
@@ -274,7 +267,7 @@
 		sentinelEl: null,
 		revealP: 0,
 		visibleWordIndex: -1,
-		isFixed: false, // Updated key
+		isFixed: false,
 		textScale: 1,
 		fixedLeftPx: 0
 	};
@@ -304,15 +297,18 @@
 		fixedLeftPx: 0
 	};
 
-	// Global Scroll State
 	let pageScrollTop = 0;
-
-	// Mouse
 	let mouseCoords = spring({ x: 0, y: 0 }, { stiffness: 0.05, damping: 0.25 });
 
 	// --- UTILS ---
 	const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
 	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+	// --- GRAMMAR HELPER (New) ---
+	function getArticle(word: string) {
+		// Starts with vowel?
+		return /^[aeiou]/i.test(word) ? 'an' : 'a';
+	}
 
 	// --- CONFIG ---
 	const INTRO_DISTANCE_PX = 40;
@@ -332,7 +328,6 @@
 	let dynamicMedium = BASE_MEDIUM;
 	let dynamicLarge = BASE_LARGE;
 
-	// Logo morph config
 	const START_GAP = 64;
 	const END_GAP = 36;
 	const START_FONT = 26;
@@ -347,8 +342,6 @@
 		mouseCoords.set({ x, y });
 	}
 
-	// Generic Fixer Helper
-	// Now works for all state objects because they all use 'isFixed'
 	function updateFixedState(
 		stateObj: TrackState | IntroState | GridState | FormState,
 		windowCenter: number
@@ -363,7 +356,7 @@
 		}
 	}
 
-	// --- DATA PREPARATION ---
+	// --- DATA ---
 	interface LineData {
 		size: string;
 		text: string;
@@ -404,7 +397,6 @@
 	const { lines: lines2 } = prepareLines(bottomTextData);
 	const { lines: lines3 } = prepareLines(finalTextData);
 
-	// --- GRID DATA ---
 	const gridCells = [
 		{
 			label: 'Public Figure',
@@ -529,7 +521,6 @@
 		}, 400);
 	}
 
-	// --- CLOUD ITEMS (Optimized generation) ---
 	const clinicalFacts = [
 		'HbA1c > 6.5%',
 		'Hypertension',
@@ -580,7 +571,7 @@
 	];
 
 	let cloudItems = new Array(60).fill(0).map((_, i) => ({
-		id: i, // Added ID for Keyed Each
+		id: i,
 		text: clinicalFacts[i % clinicalFacts.length],
 		x: Math.random() * 100,
 		y: Math.random() * 100,
@@ -589,18 +580,14 @@
 		scale: 0.8 + Math.random() * 0.4
 	}));
 
-	// --- SCROLL HANDLER (Optimized) ---
 	function computeTrackProgress(trackEl: HTMLElement | null, viewportH: number) {
 		if (!scrollParent || !trackEl) return 0;
 		const trackRect = trackEl.getBoundingClientRect();
-		// Optimization: Calculate offset relative to viewport without forcing parent recalc
-		const trackTop = trackRect.top; // Relative to viewport
+		const trackTop = trackRect.top;
 		const trackTopInScroll = trackTop + pageScrollTop;
-
 		const end = trackTopInScroll + (trackEl.offsetHeight - viewportH);
 		const current = pageScrollTop;
 		const denom = end - trackTopInScroll;
-
 		return clamp01(denom > 0 ? (current - trackTopInScroll) / denom : 0);
 	}
 
@@ -613,7 +600,6 @@
 	) {
 		if (!viewportEl || !sentinelEl) return currentScale;
 
-		// Read rect only once
 		const viewportRect = viewportEl.getBoundingClientRect();
 		const naturalCenterY = viewportRect.top + window.innerHeight / 2;
 
@@ -659,9 +645,9 @@
 		track1.textScale = handleStickyText(
 			track1.viewportEl,
 			track1.sentinelEl,
-			track1.isFixed, // UPDATED: uses isFixed
+			track1.isFixed,
 			(v) => {
-				track1.isFixed = v; // UPDATED
+				track1.isFixed = v;
 				updateFixedState(track1, window.innerWidth / 2);
 			},
 			track1.textScale
@@ -688,9 +674,9 @@
 		track2.textScale = handleStickyText(
 			track2.viewportEl,
 			track2.sentinelEl,
-			track2.isFixed, // UPDATED
+			track2.isFixed,
 			(v) => {
-				track2.isFixed = v; // UPDATED
+				track2.isFixed = v;
 				updateFixedState(track2, window.innerWidth / 2);
 			},
 			track2.textScale
@@ -717,9 +703,9 @@
 		track3.textScale = handleStickyText(
 			track3.viewportEl,
 			track3.sentinelEl,
-			track3.isFixed, // UPDATED
+			track3.isFixed,
 			(v) => {
-				track3.isFixed = v; // UPDATED
+				track3.isFixed = v;
 				updateFixedState(track3, window.innerWidth / 2);
 			},
 			track3.textScale
@@ -734,13 +720,12 @@
 	}
 
 	function handleResize() {
-		// Force immediate update on resize
 		updateScroll();
 		const winCenter = window.innerWidth / 2;
 		if (introState.isFixed) introState.fixedLeftPx = winCenter;
-		if (track1.isFixed) track1.fixedLeftPx = winCenter; // UPDATED
-		if (track2.isFixed) track2.fixedLeftPx = winCenter; // UPDATED
-		if (track3.isFixed) track3.fixedLeftPx = winCenter; // UPDATED
+		if (track1.isFixed) track1.fixedLeftPx = winCenter;
+		if (track2.isFixed) track2.fixedLeftPx = winCenter;
+		if (track3.isFixed) track3.fixedLeftPx = winCenter;
 		if (grid1.isFixed) grid1.fixedLeftPx = winCenter;
 		if (grid2.isFixed) grid2.fixedLeftPx = winCenter;
 		if (formState.isFixed) formState.fixedLeftPx = winCenter;
@@ -753,7 +738,6 @@
 		currentX = 0,
 		currentY = 0;
 
-	// UPDATED: onMount is no longer async
 	onMount(() => {
 		if (!containerEl || !bubbleEl) return;
 
@@ -768,7 +752,6 @@
 			const ease = 0.1;
 			currentX += (targetX - currentX) * ease;
 			currentY += (targetY - currentY) * ease;
-			// 3d transform for GPU promotion
 			if (bubbleEl) {
 				bubbleEl.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
 			}
@@ -778,12 +761,10 @@
 		window.addEventListener('mousemove', onMouseMove);
 		bubbleRaf = requestAnimationFrame(animateBubble);
 
-		// "bind:this" elements are available now, no need to await tick() inside onMount
 		scrollParent?.addEventListener('scroll', onScroll, { passive: true });
 		window.addEventListener('resize', handleResize);
 		window.addEventListener('mousemove', handleMouseMove);
 
-		// Init
 		updateScroll();
 
 		return () => {
@@ -795,7 +776,6 @@
 		};
 	});
 
-	// --- REACTIVE STYLES (Refactored for new objects) ---
 	$: logoY = `${(1 - introState.progress) * 50}%`;
 	$: logoTranslateY = `${(1 - introState.progress) * -50}%`;
 	$: logoTopPx = `${introState.progress * INTRO_DISTANCE_PX}px`;
@@ -806,7 +786,6 @@
 	$: restFontPx = `${lerp(START_FONT, END_FONT, morphT).toFixed(2)}px`;
 	$: restLetterPx = `${lerp(START_LETTER, END_LETTER, morphT).toFixed(2)}px`;
 
-	// Position Styling
 	const getCenter = () => (typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
 
 	$: fixedLeftStyle = `${introState.fixedLeftPx || getCenter()}px`;
@@ -820,7 +799,6 @@
 
 	$: bgFxOpacity = 1 - clamp01(pageScrollTop / BG_FADE_PX);
 
-	// Transitions
 	$: fadeOutOld1 = clamp01((grid1.fillerP - 0.4) * 2.5);
 	$: previousContentOpacity1 = 1 - fadeOutOld1;
 
@@ -946,12 +924,12 @@
 				style="--grid-fixed-left: {gridFixedLeftStyle}; --grid-fix-top: {GRID_FIX_TOP_PX}px;"
 			>
 				<div class="grid-wrapper">
-					<div class="grid" role="button" tabindex="0">
+					<div class="grid-cloud" role="button" tabindex="0">
 						{#each gridCells as c, i (c.label)}
 							<div
 								role="button"
 								tabindex="0"
-								class="cell"
+								class="cell cloud-cell"
 								class:selected-mode={selectedCellIndex !== -1}
 								class:is-chosen={selectedCellIndex === i}
 								class:fading={selectedCellIndex !== -1 && selectedCellIndex !== i}
@@ -966,7 +944,10 @@
 								on:keydown={() => handleCellClick(i)}
 							>
 								<canvas class="pixel-bg"></canvas>
-								<span class="cell-label">{c.label}</span>
+								<div class="cell-content-wrapper">
+									<span class="prefix">I am {getArticle(c.label)}</span>
+									<span class="cell-label">{c.label}</span>
+								</div>
 							</div>
 						{/each}
 					</div>
@@ -1118,10 +1099,8 @@
 </main>
 
 <style>
-	/* Optimization: Add will-change to heavy animators */
 	.cloud-item {
 		will-change: transform, opacity;
-		/* Removing left/top usage in favor of transforms in inline style for performance */
 	}
 
 	.logo-dock,
@@ -1145,7 +1124,6 @@
 		z-index: 0;
 		pointer-events: none;
 	}
-	/* INTRO & LOGO STYLES */
 	.intro-track {
 		position: relative;
 		height: 180vh;
@@ -1200,7 +1178,6 @@
 			color: rgba(255, 255, 255, 0.3);
 		}
 	}
-	/* REVEAL TRACK */
 	.message-track {
 		position: relative;
 		height: 350vh;
@@ -1230,13 +1207,11 @@
 		position: absolute;
 		color: #a3a3a3;
 		font-family: 'Courier New', Courier, monospace;
-		/* Position handled by transform in inline styles now for performance */
 		left: 0;
 		top: 0;
 		white-space: nowrap;
 		transition: opacity 0.5s ease;
 	}
-	/* TEXT DOCK */
 	.text-sentinel {
 		position: absolute;
 		left: 50%;
@@ -1305,7 +1280,6 @@
 	.word.active {
 		opacity: 1;
 	}
-	/* GRID DOCK STYLES */
 	.grid-sentinel {
 		width: 100%;
 		height: 1px;
@@ -1333,58 +1307,90 @@
 		width: 100%;
 		pointer-events: auto;
 	}
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(4, 1fr);
-		grid-auto-rows: minmax(100px, auto);
-		grid-auto-flow: dense;
+
+	/* --- CLOUD GRID STYLES (UPDATED) --- */
+	.grid-cloud {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 		gap: 16px;
 		width: 100%;
-		max-height: 600px;
-		cursor: pointer;
+		max-width: 1100px;
+		margin: 0 auto;
+		pointer-events: auto;
 	}
-	/* GRID 2 (UNIFORM) */
+
+	.cell.cloud-cell {
+		flex: 1 1 auto;
+		width: auto;
+		min-width: 220px;
+		max-width: 400px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 80px;
+		padding: 0 32px;
+	}
+
+	.cell-content-wrapper {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	.prefix {
+		display: inline-block;
+		font-weight: 300;
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 0.95rem;
+		max-width: 0;
+		opacity: 0;
+		transform: translateX(10px);
+		overflow: hidden;
+		transition:
+			max-width 0.5s cubic-bezier(0.2, 0, 0.2, 1),
+			opacity 0.4s ease,
+			transform 0.4s ease;
+		margin-right: 0;
+	}
+
+	.cell:hover .prefix {
+		max-width: 80px;
+		opacity: 1;
+		transform: translateX(0);
+		margin-right: 6px;
+	}
+
+	.cell:hover .cell-label {
+		transform: translateX(0);
+		color: white;
+	}
+
+	.cell-label {
+		font-weight: 600;
+		font-size: 1.1rem;
+		transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+		text-transform: capitalize;
+	}
+
+	/* --- GRID 2 (UNIFORM) --- */
 	.grid-uniform {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr); /* 3 Columns */
+		grid-template-columns: repeat(3, 1fr);
 		gap: 16px;
 		width: 100%;
 		pointer-events: auto;
 	}
-	.grid > :nth-child(2) {
-		grid-column: span 2;
-		grid-row: span 1;
-		font-size: 1.2rem;
-	}
-	.grid > :nth-child(7) {
-		grid-column: span 2;
-		grid-row: span 2;
-		font-size: 1.4rem;
-		z-index: 2;
-	}
-	.grid > :nth-child(9) {
-		grid-column: span 2;
-		grid-row: span 2;
-		font-size: 1.2rem;
-	}
-	.grid > :nth-child(6) {
-		grid-row: span 2;
-	}
-	.grid > :nth-child(5) {
-		grid-column: span 1;
-	}
-	.grid > :nth-child(10) {
-		grid-column: span 2;
-	}
+
 	/* CELL STYLING */
 	.cell {
 		position: relative;
 		overflow: hidden;
 		isolation: isolate;
-		display: grid;
-		place-items: center;
-		text-align: center;
-		padding: 12px 16px;
 		background: rgba(255, 255, 255, 0.03);
 		border: 1px solid rgba(255, 255, 255, 0.15);
 		backdrop-filter: blur(12px);
@@ -1395,7 +1401,6 @@
 		user-select: none;
 		line-height: 1.3;
 	}
-	/* Uniform Cell Specifics */
 	.uniform-cell {
 		min-height: 140px;
 		display: flex;
@@ -1403,6 +1408,7 @@
 		justify-content: center;
 		align-items: center;
 		padding: 24px;
+		text-align: center;
 	}
 	.cell-content {
 		position: relative;
@@ -1454,14 +1460,6 @@
 		z-index: 0;
 		pointer-events: none;
 		display: block;
-	}
-	.cell-label {
-		position: relative;
-		z-index: 2;
-		transition: all 200ms;
-	}
-	.cell:hover .cell-label {
-		transform: scale(1.05);
 	}
 	:root {
 		--logo-color: white;
@@ -1516,7 +1514,6 @@
 		margin: 0 auto;
 		min-height: 200vh;
 	}
-	/* ✅ INCREASED HEIGHT TO ALLOW SAFE ZONE */
 	.filler {
 		height: 100vh;
 	}
@@ -1531,28 +1528,17 @@
 		box-shadow: inset 0 0 200px 30px black;
 	}
 	@media (max-width: 768px) {
-		.grid {
-			grid-template-columns: repeat(2, 1fr);
-			max-height: none;
+		.cell.cloud-cell {
+			min-width: 100%;
 		}
 		.grid-uniform {
 			grid-template-columns: 1fr;
-		}
-	}
-	@media (max-width: 480px) {
-		.grid {
-			gap: 8px;
-		}
-		.cell {
-			font-size: 0.9rem !important;
-			padding: 8px;
 		}
 	}
 	.form-sentinel {
 		width: 100%;
 		height: 1px;
 	}
-	/* New Dock Style for Form */
 	.form-dock {
 		position: relative;
 		width: 100%;
@@ -1712,10 +1698,8 @@
 		width: 250px;
 		height: 250px;
 		position: absolute;
-		/* FIX 2: Explicitly set top/left to 0 so the transform math is consistent */
 		top: 0;
 		left: 0;
-		/* We keep the initial transform, though JS will overwrite it immediately */
 		transform: translate3d(-50%, -50%, 0);
 		background: radial-gradient(
 			circle,
