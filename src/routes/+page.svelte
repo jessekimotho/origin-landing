@@ -1,8 +1,146 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { spring } from 'svelte/motion';
 
-	// --- TYPE DEFINITIONS ---
+	// ---------------------------------------------------------
+	// PREFERS REDUCED MOTION
+	// ---------------------------------------------------------
+	const prefersReducedMotion =
+		typeof window !== 'undefined' &&
+		window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+	// ---------------------------------------------------------
+	// TIMELINE CONFIG (semantic + human readable)
+	// - durationPx controls how long each section "stays on"
+	// - phases control in/hold/out animation windows inside that duration
+	// ---------------------------------------------------------
+	type Phase = { at: number; dur: number }; // normalized 0..1
+	type Phases = { in?: Phase; hold?: Phase; out?: Phase };
+
+	type TrackId = 'intro' | 'track1' | 'grid1' | 'track2' | 'grid2' | 'track3' | 'form';
+
+	type TrackSpec = {
+		id: TrackId;
+		label?: string;
+		durationPx: number; // scroll length in px
+		phases: Phases;
+		centerOffsetPx?: number; // optional nudge for sticky centering
+	};
+
+	const TIMELINE: TrackSpec[] = [
+		{
+			id: 'intro',
+			label: 'Intro Logo',
+			durationPx: 1200,
+			phases: {
+				in: { at: 0.0, dur: 0.25 },
+				hold: { at: 0.25, dur: 0.55 },
+				out: { at: 0.8, dur: 0.2 }
+			}
+		},
+		{
+			id: 'track1',
+			label: 'Message 1',
+			durationPx: 2400,
+			phases: {
+				in: { at: 0.0, dur: 0.18 },
+				hold: { at: 0.18, dur: 0.64 },
+				out: { at: 0.82, dur: 0.18 }
+			},
+			centerOffsetPx: -40
+		},
+		{
+			id: 'grid1',
+			label: 'Identity Grid',
+			durationPx: 2000,
+			phases: {
+				in: { at: 0.0, dur: 0.12 },
+				hold: { at: 0.12, dur: 0.76 },
+				out: { at: 0.88, dur: 0.12 }
+			}
+		},
+		{
+			id: 'track2',
+			label: 'Message 2',
+			durationPx: 2400,
+			phases: {
+				in: { at: 0.0, dur: 0.18 },
+				hold: { at: 0.18, dur: 0.64 },
+				out: { at: 0.82, dur: 0.18 }
+			},
+			centerOffsetPx: -40
+		},
+		{
+			id: 'grid2',
+			label: 'Breakthrough Grid',
+			durationPx: 2000,
+			phases: {
+				in: { at: 0.0, dur: 0.12 },
+				hold: { at: 0.12, dur: 0.76 },
+				out: { at: 0.88, dur: 0.12 }
+			}
+		},
+		{
+			id: 'track3',
+			label: 'Message 3',
+			durationPx: 1800,
+			phases: {
+				in: { at: 0.0, dur: 0.2 },
+				hold: { at: 0.2, dur: 0.6 },
+				out: { at: 0.8, dur: 0.2 }
+			},
+			centerOffsetPx: -40
+		},
+		{
+			id: 'form',
+			label: 'Contact Form',
+			durationPx: 1400,
+			phases: {
+				in: { at: 0.0, dur: 0.18 },
+				hold: { at: 0.18, dur: 0.64 },
+				out: { at: 0.82, dur: 0.18 }
+			}
+		}
+	];
+
+	const specById = new Map<TrackId, TrackSpec>(TIMELINE.map((t) => [t.id, t]));
+
+	// ---------------------------------------------------------
+	// Helpers
+	// ---------------------------------------------------------
+	const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+	function phaseValue(p: number, ph?: Phase) {
+		if (!ph) return 0;
+		return clamp01((p - ph.at) / ph.dur);
+	}
+
+	function inHoldOut(p: number, phases: Phases) {
+		const pin = phaseValue(p, phases.in);
+		const pout = phaseValue(p, phases.out);
+
+		// basic "in then out" envelope
+		const envelope = clamp01(pin * (1 - pout));
+
+		// useful motion-friendly outputs
+		const opacity = envelope;
+		const blur = lerp(14, 0, pin) + lerp(0, 14, pout);
+		const scale = lerp(0.98, 1.0, pin) * lerp(1.0, 0.98, pout);
+
+		// hold progress (0..1 within hold window)
+		const hold = phases.hold ? phaseValue(p, phases.hold) : 0;
+
+		return { pin, pout, hold, envelope, opacity, blur, scale };
+	}
+
+	function getArticle(word: string) {
+		return /^[aeiou]/i.test(word) ? 'an' : 'a';
+	}
+
+	// ---------------------------------------------------------
+	// Pixel hover action (kept from your version, with scroll-safe touch-action)
+	// ---------------------------------------------------------
 	interface Pixel {
 		x: number;
 		y: number;
@@ -20,48 +158,12 @@
 		idle: boolean;
 		spd: number;
 	}
-
 	interface HoverOptions {
 		gap?: number;
 		speed?: number;
 		colors?: string[];
 		noFocus?: boolean;
 	}
-
-	interface TrackState {
-		msgEl: HTMLElement | null;
-		viewportEl: HTMLElement | null;
-		dockEl: HTMLElement | null;
-		sentinelEl: HTMLElement | null;
-		revealP: number;
-		visibleWordIndex: number;
-		textScale: number;
-	}
-
-	interface GridState {
-		dockEl: HTMLElement | null;
-		sentinelEl: HTMLElement | null;
-		fillerEl: HTMLElement | null;
-		fillerP: number;
-	}
-
-	interface IntroState {
-		trackEl: HTMLElement | null;
-		dockEl: HTMLElement | null;
-		progress: number;
-	}
-
-	interface FormState {
-		dockEl: HTMLElement | null;
-		sentinelEl: HTMLElement | null;
-	}
-
-	// ---------------------------------------------------------
-	// PIXEL HOVER ACTION
-	// ---------------------------------------------------------
-	const prefersReducedMotion =
-		typeof window !== 'undefined' &&
-		window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
 	function pixelHover(node: HTMLElement, opts: HoverOptions) {
 		const {
@@ -80,30 +182,44 @@
 		let pixels: Pixel[] = [];
 		let raf = 0;
 		let hovering = false;
-		let width = 0;
-		let height = 0;
+		let isVisible = true;
+
+		let cssW = 0;
+		let cssH = 0;
+		let dpr = 1;
 
 		const rand = (min: number, max: number) => Math.random() * (max - min) + min;
 
 		function resize() {
 			const r = canvas.getBoundingClientRect();
-			width = Math.max(1, Math.floor(r.width));
-			height = Math.max(1, Math.floor(r.height));
+			cssW = Math.max(1, Math.floor(r.width));
+			cssH = Math.max(1, Math.floor(r.height));
 
-			if (canvas.width !== width || canvas.height !== height) {
-				canvas.width = width;
-				canvas.height = height;
+			dpr = Math.min(2, window.devicePixelRatio || 1);
+			const w = Math.floor(cssW * dpr);
+			const h = Math.floor(cssH * dpr);
+
+			if (canvas.width !== w || canvas.height !== h) {
+				canvas.width = w;
+				canvas.height = h;
+				canvas.style.width = `${cssW}px`;
+				canvas.style.height = `${cssH}px`;
 			}
 
+			ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
 			pixels = [];
-			for (let x = 0; x < width; x += gap) {
-				for (let y = 0; y < height; y += gap) {
+			const centerX = cssW / 2;
+			const centerY = cssH / 2;
+
+			for (let x = 0; x < cssW; x += gap) {
+				for (let y = 0; y < cssH; y += gap) {
 					const color = colors[(Math.random() * colors.length) | 0];
 					const minSize = 0.5;
 					const maxSizeInteger = 2;
 					const maxSize = rand(minSize, maxSizeInteger);
-					const dx = x - width / 2;
-					const dy = y - height / 2;
+					const dx = x - centerX;
+					const dy = y - centerY;
 					const delay = prefersReducedMotion ? 0 : Math.sqrt(dx * dx + dy * dy);
 
 					pixels.push({
@@ -118,7 +234,7 @@
 						shimmer: false,
 						reverse: false,
 						counter: 0,
-						counterStep: Math.random() * 4 + (width + height) * 0.01,
+						counterStep: Math.random() * 4 + (cssW + cssH) * 0.01,
 						delay,
 						idle: true,
 						spd: rand(0.1, 0.9) * (prefersReducedMotion ? 0 : speed)
@@ -127,26 +243,24 @@
 			}
 		}
 
-		function drawPixel(p: Pixel) {
-			const centerOffset = p.maxSizeInteger * 0.5 - p.size * 0.5;
-			ctx.fillStyle = p.color;
-			ctx.fillRect(p.x + centerOffset, p.y + centerOffset, p.size, p.size);
-		}
-
-		function step() {
-			ctx.clearRect(0, 0, width, height);
+		function drawFrame() {
+			ctx.clearRect(0, 0, cssW, cssH);
 			let allIdle = true;
+
+			const buckets = new Map<string, Pixel[]>();
 
 			for (let i = 0; i < pixels.length; i++) {
 				const p = pixels[i];
 
 				if (hovering) {
 					p.idle = false;
+
 					if (p.counter <= p.delay) {
 						p.counter += p.counterStep;
 						allIdle = false;
 						continue;
 					}
+
 					if (p.size >= p.maxSize) p.shimmer = true;
 
 					if (p.shimmer) {
@@ -156,55 +270,85 @@
 					} else {
 						p.size += p.sizeStep;
 					}
-					drawPixel(p);
+
 					allIdle = false;
 				} else {
 					p.shimmer = false;
 					p.counter = 0;
+
 					if (p.size <= 0) {
+						p.size = 0;
 						p.idle = true;
 					} else {
 						p.size -= 0.1;
-						drawPixel(p);
 						p.idle = false;
+						allIdle = false;
 					}
-					if (!p.idle) allIdle = false;
+				}
+
+				if (p.size > 0) {
+					const arr = buckets.get(p.color);
+					if (arr) arr.push(p);
+					else buckets.set(p.color, [p]);
 				}
 			}
 
-			if (!hovering && allIdle) {
-				cancelAnimationFrame(raf);
-				raf = 0;
-				ctx.clearRect(0, 0, width, height);
-			} else {
-				raf = requestAnimationFrame(step);
+			for (const [color, arr] of buckets) {
+				ctx.fillStyle = color;
+				for (let i = 0; i < arr.length; i++) {
+					const p = arr[i];
+					const centerOffset = p.maxSizeInteger * 0.5 - p.size * 0.5;
+					ctx.fillRect(p.x + centerOffset, p.y + centerOffset, p.size, p.size);
+				}
 			}
+
+			if (!isVisible || (!hovering && allIdle)) {
+				raf = 0;
+				if (!hovering) ctx.clearRect(0, 0, cssW, cssH);
+				return;
+			}
+
+			raf = requestAnimationFrame(drawFrame);
 		}
 
 		const ro = new ResizeObserver(() => {
 			resize();
-			if (hovering && !raf) step();
+			if (isVisible && hovering && !raf) raf = requestAnimationFrame(drawFrame);
 		});
+
+		const io = new IntersectionObserver(
+			([entry]) => {
+				isVisible = entry.isIntersecting;
+				if (!isVisible) {
+					cancelAnimationFrame(raf);
+					raf = 0;
+					return;
+				}
+				if (hovering && !raf) raf = requestAnimationFrame(drawFrame);
+			},
+			{ root: null, threshold: 0.01 }
+		);
 
 		function onEnter() {
 			if (noFocus) return;
 			hovering = true;
-			if (!raf) step();
+			if (isVisible && !raf) raf = requestAnimationFrame(drawFrame);
 		}
-
 		function onLeave() {
 			hovering = false;
-			if (!raf) step();
+			if (isVisible && !raf) raf = requestAnimationFrame(drawFrame);
 		}
 
 		resize();
 		ro.observe(node);
+		io.observe(node);
 		node.addEventListener('mouseenter', onEnter);
 		node.addEventListener('mouseleave', onLeave);
 
 		return {
 			destroy() {
 				ro.disconnect();
+				io.disconnect();
 				node.removeEventListener('mouseenter', onEnter);
 				node.removeEventListener('mouseleave', onLeave);
 				cancelAnimationFrame(raf);
@@ -213,113 +357,10 @@
 	}
 
 	// ---------------------------------------------------------
-	// CORE LOGIC (STICKY-ONLY DOCKING)
+	// DATA
 	// ---------------------------------------------------------
-	let scrollParent: HTMLElement | null = null;
-
-	let introState: IntroState = {
-		trackEl: null,
-		dockEl: null,
-		progress: 0
-	};
-
-	let track1: TrackState = {
-		msgEl: null,
-		viewportEl: null,
-		dockEl: null,
-		sentinelEl: null,
-		revealP: 0,
-		visibleWordIndex: -1,
-		textScale: 1
-	};
-
-	let track2: TrackState = {
-		msgEl: null,
-		viewportEl: null,
-		dockEl: null,
-		sentinelEl: null,
-		revealP: 0,
-		visibleWordIndex: -1,
-		textScale: 1
-	};
-
-	let track3: TrackState = {
-		msgEl: null,
-		viewportEl: null,
-		dockEl: null,
-		sentinelEl: null,
-		revealP: 0,
-		visibleWordIndex: -1,
-		textScale: 1
-	};
-
-	let grid1: GridState = {
-		dockEl: null,
-		sentinelEl: null,
-		fillerEl: null,
-		fillerP: 0
-	};
-
-	let grid2: GridState = {
-		dockEl: null,
-		sentinelEl: null,
-		fillerEl: null,
-		fillerP: 0
-	};
-
-	let formState: FormState = {
-		dockEl: null,
-		sentinelEl: null
-	};
-
-	let pageScrollTop = 0;
-
-	let mouseCoords = spring({ x: 0, y: 0 }, { stiffness: 0.05, damping: 0.25 });
-
-	// --- UTILS ---
-	const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
-	const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-	// --- GRAMMAR HELPER ---
-	function getArticle(word: string) {
-		return /^[aeiou]/i.test(word) ? 'an' : 'a';
-	}
-
-	// --- CONFIG ---
-	const INTRO_DISTANCE_PX = 40;
-	const REVEAL_LEADIN = 0.18;
-	const BG_FADE_PX = 900;
-	const ESTIMATED_WORDS = 20;
-
-	const TEXT_FIX_TOP_PX = 240; // sticky top for text docks
-	const SHRINK_RANGE_PX = 400;
-	const TARGET_SCALE = 0.5;
-
-	const GRID_FIX_TOP_PX = 340; // sticky top for grid docks
-	const FORM_FIX_TOP_PX = 380; // sticky top for form
-
-	const BASE_MEDIUM = 55;
-	const BASE_LARGE = 80;
-	let dynamicMedium = BASE_MEDIUM;
-	let dynamicLarge = BASE_LARGE;
-
-	const START_GAP = 64;
-	const END_GAP = 36;
-	const START_FONT = 26;
-	const END_FONT = 20;
-	const START_LETTER = 32;
-	const END_LETTER = 8;
-
-	function handleMouseMove(e: MouseEvent) {
-		if (document.hidden) return;
-		const x = e.clientX / window.innerWidth - 0.5;
-		const y = e.clientY / window.innerHeight - 0.5;
-		mouseCoords.set({ x, y });
-	}
-
-	// --- DATA ---
 	interface LineData {
-		size: string;
+		size: 'medium' | 'larger';
 		text: string;
 	}
 
@@ -359,6 +400,10 @@
 	const { lines: lines1 } = prepareLines(topTextData);
 	const { lines: lines2 } = prepareLines(bottomTextData);
 	const { lines: lines3 } = prepareLines(finalTextData);
+	const linesByTrack = [lines1, lines2, lines3];
+
+	// Make this accurate for your copy length (or compute from linesByTrack)
+	const ESTIMATED_WORDS = 22;
 
 	const gridCells = [
 		{
@@ -473,17 +518,6 @@
 		}
 	];
 
-	let selectedCellIndex = -1;
-	let isFading = false;
-
-	function handleCellClick(index: number) {
-		if (selectedCellIndex !== -1) return;
-		isFading = true;
-		setTimeout(() => {
-			selectedCellIndex = index;
-		}, 400);
-	}
-
 	const clinicalFacts = [
 		'HbA1c > 6.5%',
 		'Hypertension',
@@ -511,25 +545,17 @@
 		'Statins',
 		'Metformin',
 		'Mitochondrial Dysfunction',
-		'Cytokine Storm',
 		'IL-6 Elevation',
 		'TNF-alpha',
 		'Systolic > 140',
 		'Stroke Risk x2',
 		'Myocardial Infarction',
 		'PAD',
-		'Gastroparesis',
 		'Nephropathy',
-		"Alzheimer's Link",
 		'Cancer Correlation',
-		'Immune Suppression',
 		'Slow Healing',
 		'Sarcopenia',
-		'Osteoporosis',
 		'Vitamin D Low',
-		'Homocysteine',
-		'Fibrinogen',
-		'Uric Acid',
 		'Triglycerides'
 	];
 
@@ -543,282 +569,329 @@
 		scale: 0.8 + Math.random() * 0.4
 	}));
 
-	// Progress based on scrollTop and offsetTop (fast & stable inside overflow container)
-	function computeTrackProgress(trackEl: HTMLElement | null, viewportH: number) {
-		if (!scrollParent || !trackEl) return 0;
+	// ---------------------------------------------------------
+	// STATE: scroll + progress ranges
+	// ---------------------------------------------------------
+	let scrollParent: HTMLElement | null = null;
 
-		const top = trackEl.offsetTop;
-		const end = top + (trackEl.offsetHeight - viewportH);
-		const current = scrollParent.scrollTop;
-		const denom = end - top;
+	const trackEls: Partial<Record<TrackId, HTMLElement>> = {};
+	const ranges = new Map<TrackId, { start: number; end: number; len: number }>();
 
-		return clamp01(denom > 0 ? (current - top) / denom : 0);
+	let scrollTop = 0;
+	let viewportH = 0;
+
+	// per-track progress (0..1)
+	let pIntro = 0;
+	let pTrack1 = 0;
+	let pGrid1 = 0;
+	let pTrack2 = 0;
+	let pGrid2 = 0;
+	let pTrack3 = 0;
+	let pForm = 0;
+
+	// text reveal indices
+	let visibleWord1 = -1;
+	let visibleWord2 = -1;
+	let visibleWord3 = -1;
+
+	// grid selection
+	let selectedCellIndex = -1;
+	let isFading = false;
+
+	function handleCellClick(index: number) {
+		if (selectedCellIndex !== -1) return;
+		isFading = true;
+		setTimeout(() => {
+			selectedCellIndex = index;
+		}, 400);
 	}
 
-	// Sticky-only: compute scale as the viewport center approaches the sticky top line
-	function computeStickyScale(viewportEl: HTMLElement | null) {
-		if (!viewportEl) return 1;
+	// ---------------------------------------------------------
+	// Mouse parallax (RAF throttled)
+	// ---------------------------------------------------------
+	let mouseCoords = spring({ x: 0, y: 0 }, { stiffness: 0.05, damping: 0.25 });
+	let mouseRaf = 0;
+	let lastMouse: MouseEvent | null = null;
 
-		const viewportRect = viewportEl.getBoundingClientRect();
+	function handleMouseMove(e: MouseEvent) {
+		if (document.hidden || prefersReducedMotion) return;
+		lastMouse = e;
+		if (mouseRaf) return;
 
-		// NOTE: because `main` scrolls, these rects are still viewport-based; that's fine for scale math.
-		const naturalCenterY = viewportRect.top + window.innerHeight / 2;
-
-		const distFromLock = naturalCenterY - TEXT_FIX_TOP_PX;
-
-		if (distFromLock <= 0) return TARGET_SCALE;
-
-		if (distFromLock < SHRINK_RANGE_PX) {
-			const progress = 1 - distFromLock / SHRINK_RANGE_PX;
-			return lerp(1, TARGET_SCALE, progress);
-		}
-
-		return 1;
+		mouseRaf = requestAnimationFrame(() => {
+			mouseRaf = 0;
+			if (!lastMouse) return;
+			const x = lastMouse.clientX / window.innerWidth - 0.5;
+			const y = lastMouse.clientY / window.innerHeight - 0.5;
+			mouseCoords.set({ x, y });
+		});
 	}
 
-	let isTicking = false;
-
-	function onScroll() {
-		if (!isTicking) {
-			requestAnimationFrame(() => {
-				updateScroll();
-				isTicking = false;
-			});
-			isTicking = true;
-		}
-	}
-
-	function updateScroll() {
+	// ---------------------------------------------------------
+	// Progress from ranges
+	// ---------------------------------------------------------
+	function rebuildRanges() {
 		if (!scrollParent) return;
+		viewportH = scrollParent.clientHeight;
 
-		pageScrollTop = scrollParent.scrollTop;
-		const vH = scrollParent.clientHeight;
+		(Object.keys(trackEls) as TrackId[]).forEach((id) => {
+			const el = trackEls[id];
+			const spec = specById.get(id);
+			if (!el || !spec) return;
 
-		// 1. Logo (progress only; docking is pure sticky CSS)
-		introState.progress = computeTrackProgress(introState.trackEl, vH);
-
-		// 2. Track 1 (reveal + scale only)
-		track1.revealP = computeTrackProgress(track1.msgEl, vH);
-		const prog1 = clamp01((track1.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
-		track1.visibleWordIndex = Math.floor(prog1 * (ESTIMATED_WORDS + 2)) - 1;
-		track1.textScale = computeStickyScale(track1.viewportEl);
-
-		// 3. Filler 1 (opacity fade)
-		if (grid1.fillerEl) {
-			const rect = grid1.fillerEl.getBoundingClientRect();
-			grid1.fillerP = clamp01((window.innerHeight - rect.top) / window.innerHeight);
-		}
-
-		// 4. Track 2
-		track2.revealP = computeTrackProgress(track2.msgEl, vH);
-		const prog2 = clamp01((track2.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
-		track2.visibleWordIndex = Math.floor(prog2 * (ESTIMATED_WORDS + 2)) - 1;
-		track2.textScale = computeStickyScale(track2.viewportEl);
-
-		// 5. Filler 2
-		if (grid2.fillerEl) {
-			const rect = grid2.fillerEl.getBoundingClientRect();
-			grid2.fillerP = clamp01((window.innerHeight - rect.top) / window.innerHeight);
-		}
-
-		// 6. Track 3
-		track3.revealP = computeTrackProgress(track3.msgEl, vH);
-		const prog3 = clamp01((track3.revealP - REVEAL_LEADIN) / (1 - REVEAL_LEADIN));
-		track3.visibleWordIndex = Math.floor(prog3 * (ESTIMATED_WORDS + 2)) - 1;
-		track3.textScale = computeStickyScale(track3.viewportEl);
+			const start = el.offsetTop;
+			const len = spec.durationPx;
+			const end = start + len;
+			ranges.set(id, { start, end, len });
+		});
 	}
 
-	function handleResize() {
-		updateScroll();
+	function progressFor(id: TrackId) {
+		const r = ranges.get(id);
+		if (!r || !scrollParent) return 0;
+		const y = scrollParent.scrollTop;
+		return clamp01((y - r.start) / r.len);
 	}
 
-	let bubbleEl: HTMLElement | null = null;
-	let containerEl: HTMLElement | null = null;
-	let targetX = 0,
-		targetY = 0,
-		currentX = 0,
-		currentY = 0;
+	// ---------------------------------------------------------
+	// Derived animation values (semantic phases)
+	// ---------------------------------------------------------
+	$: introFx = inHoldOut(pIntro, specById.get('intro')!.phases);
+	$: t1Fx = inHoldOut(pTrack1, specById.get('track1')!.phases);
+	$: g1Fx = inHoldOut(pGrid1, specById.get('grid1')!.phases);
+	$: t2Fx = inHoldOut(pTrack2, specById.get('track2')!.phases);
+	$: g2Fx = inHoldOut(pGrid2, specById.get('grid2')!.phases);
+	$: t3Fx = inHoldOut(pTrack3, specById.get('track3')!.phases);
+	$: formFx = inHoldOut(pForm, specById.get('form')!.phases);
 
-	onMount(() => {
-		if (!containerEl || !bubbleEl) return;
+	// Intro logo morph (example: use intro hold as the driver)
+	const START_GAP = 64;
+	const END_GAP = 36;
+	const START_FONT = 26;
+	const END_FONT = 20;
+	const START_LETTER = 32;
+	const END_LETTER = 8;
 
-		function onMouseMoveBubble(event: MouseEvent) {
-			const bounds = containerEl!.getBoundingClientRect();
-			targetX = event.clientX - bounds.left;
-			targetY = event.clientY - bounds.top;
-		}
-
-		let bubbleRaf: number;
-		function animateBubble() {
-			const ease = 0.1;
-			currentX += (targetX - currentX) * ease;
-			currentY += (targetY - currentY) * ease;
-			bubbleEl!.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
-			bubbleRaf = requestAnimationFrame(animateBubble);
-		}
-
-		window.addEventListener('mousemove', onMouseMoveBubble);
-		bubbleRaf = requestAnimationFrame(animateBubble);
-
-		scrollParent?.addEventListener('scroll', onScroll, { passive: true });
-		window.addEventListener('resize', handleResize);
-		window.addEventListener('mousemove', handleMouseMove);
-
-		updateScroll();
-
-		return () => {
-			window.removeEventListener('mousemove', onMouseMoveBubble);
-			scrollParent?.removeEventListener('scroll', onScroll);
-			window.removeEventListener('resize', handleResize);
-			window.removeEventListener('mousemove', handleMouseMove);
-			cancelAnimationFrame(bubbleRaf);
-		};
-	});
-
-	// --- Intro morph vars (same data, but sticky handles pinning) ---
-	$: logoY = `${(1 - introState.progress) * 50}%`;
-	$: logoTranslateY = `${(1 - introState.progress) * -50}%`;
-	$: logoTopPx = `${introState.progress * INTRO_DISTANCE_PX}px`;
-	$: promptOpacity = clamp01(1 - introState.progress * 1.2);
-
-	$: morphT = clamp01(1 - promptOpacity);
+	$: morphT = clamp01(introFx.hold);
 	$: logoGapPx = `${lerp(START_GAP, END_GAP, morphT).toFixed(2)}px`;
 	$: restFontPx = `${lerp(START_FONT, END_FONT, morphT).toFixed(2)}px`;
 	$: restLetterPx = `${lerp(START_LETTER, END_LETTER, morphT).toFixed(2)}px`;
 
-	// Background fade
-	$: bgFxOpacity = 1 - clamp01(pageScrollTop / BG_FADE_PX);
+	// Centering offsets
+	const centerOffset = (id: TrackId) => `${specById.get(id)?.centerOffsetPx ?? 0}px`;
 
-	// Fade previous sections based on filler progress
-	$: fadeOutOld1 = clamp01((grid1.fillerP - 0.4) * 2.5);
-	$: previousContentOpacity1 = 1 - fadeOutOld1;
+	// Background fade tied to overall scroll (optional)
+	const BG_FADE_PX = 900;
+	$: bgFxOpacity = 1 - clamp01(scrollTop / BG_FADE_PX);
 
-	$: fadeOutOld2 = clamp01((grid2.fillerP - 0.4) * 2.5);
-	$: previousContentOpacity2 = 1 - fadeOutOld2;
+	// Typography sizes (keep your responsive tuning here)
+	const BASE_MEDIUM = 55;
+	const BASE_LARGE = 80;
+	let dynamicMedium = BASE_MEDIUM;
+	let dynamicLarge = BASE_LARGE;
+
+	// ---------------------------------------------------------
+	// Scroll loop (single RAF)
+	// ---------------------------------------------------------
+	let ticking = false;
+	function onScroll() {
+		if (ticking) return;
+		ticking = true;
+		requestAnimationFrame(() => {
+			update();
+			ticking = false;
+		});
+	}
+
+	function update() {
+		if (!scrollParent) return;
+		scrollTop = scrollParent.scrollTop;
+
+		// section progress
+		pIntro = progressFor('intro');
+		pTrack1 = progressFor('track1');
+		pGrid1 = progressFor('grid1');
+		pTrack2 = progressFor('track2');
+		pGrid2 = progressFor('grid2');
+		pTrack3 = progressFor('track3');
+		pForm = progressFor('form');
+
+		// word reveal: drive from "hold" window (feels clean + semantic)
+		visibleWord1 = Math.floor(t1Fx.hold * (ESTIMATED_WORDS + 2)) - 1;
+		visibleWord2 = Math.floor(t2Fx.hold * (ESTIMATED_WORDS + 2)) - 1;
+		visibleWord3 = Math.floor(t3Fx.hold * (ESTIMATED_WORDS + 2)) - 1;
+	}
+
+	function handleResize() {
+		// tune typography with viewport width if you want
+		dynamicMedium = BASE_MEDIUM;
+		dynamicLarge = BASE_LARGE;
+
+		rebuildRanges();
+		update();
+	}
+
+	// ---------------------------------------------------------
+	// Mount / destroy
+	// ---------------------------------------------------------
+	let cleanup: (() => void)[] = [];
+
+	onMount(() => {
+		scrollParent?.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('resize', handleResize);
+		window.addEventListener('mousemove', handleMouseMove);
+
+		// initial build
+		requestAnimationFrame(() => {
+			rebuildRanges();
+			update();
+		});
+
+		cleanup.push(() => {
+			scrollParent?.removeEventListener('scroll', onScroll);
+			window.removeEventListener('resize', handleResize);
+			window.removeEventListener('mousemove', handleMouseMove);
+		});
+	});
+
+	onDestroy(() => {
+		cleanup.forEach((fn) => fn());
+		cleanup = [];
+	});
+
+	// ---------------------------------------------------------
+	// Utility: expose duration to CSS spacer via style
+	// ---------------------------------------------------------
+	function trackStyle(id: TrackId) {
+		return `--track-len:${specById.get(id)!.durationPx}px; --center-offset:${centerOffset(id)};`;
+	}
+
+	// Keyboard click helper
+	function onCellKeydown(e: KeyboardEvent, i: number) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			handleCellClick(i);
+		}
+	}
 </script>
 
 <div class="back-g"></div>
 
 <main bind:this={scrollParent}>
-	<div class="bg-fx" style="opacity: {bgFxOpacity}">
-		<div class="gradient-bg" bind:this={containerEl}>
-			<svg style="position: absolute; width:0; height:0;">
-				<filter id="goo">
-					<feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
-					<feColorMatrix
-						in="blur"
-						mode="matrix"
-						values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10"
-						result="goo"
-					/>
-					<feComposite in="SourceGraphic" in2="goo" operator="atop" />
-				</filter>
-			</svg>
-
+	<div class="bg-fx" style="opacity:{bgFxOpacity}">
+		<div class="gradient-bg">
 			<div class="gradients-container">
 				<div class="g1"></div>
 				<div class="g2"></div>
 				<div class="g3"></div>
 				<div class="g4"></div>
 				<div class="g5"></div>
-
-				<div class="interactive" bind:this={bubbleEl}>
-					<div class="core"></div>
-				</div>
 			</div>
 		</div>
 	</div>
 
-	<section class="intro-track" bind:this={introState.trackEl}>
-		<div class="intro-sticky">
+	<!-- INTRO (timeline-driven) -->
+	<section
+		class="scroll-track intro-track"
+		data-track="intro"
+		bind:this={trackEls.intro}
+		style={trackStyle('intro')}
+	>
+		<div class="sticky-viewport">
 			<div
-				bind:this={introState.dockEl}
 				class="logo-dock"
 				style="
-          --logo-y: {logoY};
-          --logo-ty: {logoTranslateY};
-          --logo-top: {logoTopPx};
-          --gap: {logoGapPx};
-          --rest-font: {restFontPx};
-          --rest-letter: {restLetterPx};
+          --gap:{logoGapPx};
+          --rest-font:{restFontPx};
+          --rest-letter:{restLetterPx};
+          --intro-opacity:{introFx.opacity};
+          --intro-blur:{introFx.blur}px;
+          --intro-scale:{introFx.scale};
         "
 			>
 				<div class="logo-mark">
-					<div
-						class="origin-logo"
-						style="
-              --mx: {$mouseCoords.x};
-              --my: {$mouseCoords.y};
-            "
-					>
+					<div class="origin-logo" style="--mx: {$mouseCoords.x}; --my: {$mouseCoords.y};">
 						<div class="inner-circle"></div>
 					</div>
-
 					<div class="rest-of-word">ORIGIN</div>
 				</div>
 			</div>
 
-			<div class="prompt" style="opacity: {promptOpacity}">Scroll BELOW to access the site</div>
+			<div class="prompt" style="opacity:{introFx.opacity}">Scroll BELOW to access the site</div>
 		</div>
+		<div class="spacer"></div>
 	</section>
 
-	<div style="opacity: {previousContentOpacity1}; transition: opacity 0.1s linear;">
-		<div class="message-track" bind:this={track1.msgEl}>
-			<div class="sticky-viewport" bind:this={track1.viewportEl}>
-				<div
-					class="cloud-container"
-					style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track1.revealP};"
-				>
-					{#each cloudItems as item (item.id)}
-						<div
-							class="cloud-item"
-							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
-                translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
-                            calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
-                            0);
-                opacity: {item.opacity};
-                font-size: calc(1rem * {item.scale});"
-						>
-							{item.text}
-						</div>
-					{/each}
-				</div>
+	<!-- TRACK 1 -->
+	<section
+		class="scroll-track"
+		data-track="track1"
+		bind:this={trackEls.track1}
+		style={trackStyle('track1')}
+	>
+		<div class="sticky-viewport">
+			<div
+				class="cloud-container"
+				style="--mx: {$mouseCoords.x}; --my: {$mouseCoords.y}; --sp:{pTrack1};"
+			>
+				{#each cloudItems as item (item.id)}
+					<div
+						class="cloud-item"
+						style="--x:{item.x}; --y:{item.y}; --d:{item.depth}; --op:{item.opacity}; --sc:{item.scale};"
+					>
+						{item.text}
+					</div>
+				{/each}
+			</div>
 
-				<div bind:this={track1.sentinelEl} class="text-sentinel"></div>
-
-				<div
-					bind:this={track1.dockEl}
-					class="text-dock"
-					style="
-            --text-fix-top: {TEXT_FIX_TOP_PX}px;
-            --fs-medium: {dynamicMedium}px;
-            --fs-large: {dynamicLarge}px;
-            --text-scale: {track1.textScale};
-          "
-				>
-					<div class="text-inner">
-						<div class="revision-container" class:fading={isFading}>
-							{#each lines1 as line (line.text)}
-								<div class="line {line.size}">
-									{#each line.words as word (word.globalIndex)}
-										<span class="word" class:active={word.globalIndex <= track1.visibleWordIndex}>
-											{word.text}&nbsp;
-										</span>
-									{/each}
-								</div>
-							{/each}
-						</div>
+			<div
+				class="text-dock"
+				style="
+          --center-offset:{centerOffset('track1')};
+          --dock-opacity:{t1Fx.opacity};
+          --dock-blur:{t1Fx.blur}px;
+          --dock-scale:{t1Fx.scale};
+          --fs-medium:{dynamicMedium}px;
+          --fs-large:{dynamicLarge}px;
+        "
+			>
+				<div class="text-inner">
+					<div class="revision-container" class:fading={isFading}>
+						{#each linesByTrack[0] as line (line.text)}
+							<div class="line {line.size}">
+								{#each line.words as word (word.globalIndex)}
+									<span class="word" class:active={word.globalIndex <= visibleWord1}>
+										{word.text}&nbsp;
+									</span>
+								{/each}
+							</div>
+						{/each}
 					</div>
 				</div>
 			</div>
 		</div>
+		<div class="spacer"></div>
+	</section>
 
-		<section class="content">
-			<div bind:this={grid1.sentinelEl} class="grid-sentinel"></div>
-
-			<div bind:this={grid1.dockEl} class="grid-dock" style="--grid-fix-top: {GRID_FIX_TOP_PX}px;">
+	<!-- GRID 1 (timeline-driven, centered sticky) -->
+	<section
+		class="scroll-track"
+		data-track="grid1"
+		bind:this={trackEls.grid1}
+		style={trackStyle('grid1')}
+	>
+		<div class="sticky-viewport">
+			<div
+				class="grid-dock"
+				style="
+          --dock-opacity:{g1Fx.opacity};
+          --dock-blur:{g1Fx.blur}px;
+          --dock-scale:{g1Fx.scale};
+          --center-offset:{centerOffset('grid1')};
+        "
+			>
 				<div class="grid-wrapper">
-					<div class="grid-cloud" role="button" tabindex="0">
+					<div class="grid-cloud">
 						{#each gridCells as c, i (c.label)}
 							<div
 								role="button"
@@ -827,7 +900,7 @@
 								class:selected-mode={selectedCellIndex !== -1}
 								class:is-chosen={selectedCellIndex === i}
 								class:fading={selectedCellIndex !== -1 && selectedCellIndex !== i}
-								style="--active-color: {c.active}"
+								style="--active-color:{c.active}"
 								use:pixelHover={{
 									gap: c.gap,
 									speed: c.speed,
@@ -835,7 +908,7 @@
 									noFocus: selectedCellIndex !== -1
 								}}
 								on:click={() => handleCellClick(i)}
-								on:keydown={() => handleCellClick(i)}
+								on:keydown={(e) => onCellKeydown(e, i)}
 							>
 								<canvas class="pixel-bg"></canvas>
 
@@ -848,129 +921,49 @@
 					</div>
 				</div>
 			</div>
-
-			<div class="filler" bind:this={grid1.fillerEl}></div>
-		</section>
-	</div>
-
-	<div style="opacity: {previousContentOpacity2}; transition: opacity 0.1s linear;">
-		<div class="message-track" bind:this={track2.msgEl}>
-			<div class="sticky-viewport" bind:this={track2.viewportEl}>
-				<div
-					class="cloud-container"
-					style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track2.revealP};"
-				>
-					{#each cloudItems as item (item.id)}
-						<div
-							class="cloud-item"
-							style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
-                translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
-                            calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
-                            0);
-                opacity: {item.opacity};
-                font-size: calc(1rem * {item.scale});"
-						>
-							{item.text}
-						</div>
-					{/each}
-				</div>
-
-				<div bind:this={track2.sentinelEl} class="text-sentinel"></div>
-
-				<div
-					bind:this={track2.dockEl}
-					class="text-dock"
-					style="
-            --text-fix-top: {TEXT_FIX_TOP_PX}px;
-            --fs-medium: {dynamicMedium}px;
-            --fs-large: {dynamicLarge}px;
-            --text-scale: {track2.textScale};
-          "
-				>
-					<div class="text-inner">
-						<div class="revision-container">
-							{#each lines2 as line (line.text)}
-								<div class="line {line.size}">
-									{#each line.words as word (word.globalIndex)}
-										<span class="word" class:active={word.globalIndex <= track2.visibleWordIndex}>
-											{word.text}&nbsp;
-										</span>
-									{/each}
-								</div>
-							{/each}
-						</div>
-					</div>
-				</div>
-			</div>
 		</div>
+		<div class="spacer"></div>
+	</section>
 
-		<section class="content">
-			<div bind:this={grid2.sentinelEl} class="grid-sentinel"></div>
-
-			<div bind:this={grid2.dockEl} class="grid-dock" style="--grid-fix-top: {GRID_FIX_TOP_PX}px;">
-				<div class="grid-wrapper">
-					<div class="grid-uniform">
-						{#each breakthroughCells as item (item.title)}
-							<div
-								class="cell uniform-cell"
-								style="--active-color: {item.colors[0]}"
-								use:pixelHover={{ gap: 6, speed: 0.035, colors: item.colors }}
-							>
-								<canvas class="pixel-bg"></canvas>
-
-								<div class="cell-content">
-									<div class="cell-title">{item.title}</div>
-									<div class="cell-desc">{item.desc}</div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			</div>
-
-			<div class="filler" bind:this={grid2.fillerEl}></div>
-		</section>
-	</div>
-
-	<div class="message-track" bind:this={track3.msgEl}>
-		<div class="sticky-viewport" bind:this={track3.viewportEl}>
+	<!-- TRACK 2 -->
+	<section
+		class="scroll-track"
+		data-track="track2"
+		bind:this={trackEls.track2}
+		style={trackStyle('track2')}
+	>
+		<div class="sticky-viewport">
 			<div
 				class="cloud-container"
-				style="--mouse-x: {$mouseCoords.x}; --mouse-y: {$mouseCoords.y}; --scroll-p: {track3.revealP};"
+				style="--mx: {$mouseCoords.x}; --my: {$mouseCoords.y}; --sp:{pTrack2};"
 			>
 				{#each cloudItems as item (item.id)}
 					<div
 						class="cloud-item"
-						style="transform: translate3d({item.x * 0.01 * 100}vw, {item.y * 0.01 * 100}vh, 0)
-              translate3d(calc(var(--mouse-x) * {item.depth} * -100px),
-                          calc((var(--mouse-y) * {item.depth} * -50px) + (var(--scroll-p) * {item.depth} * -400px)),
-                          0);
-              opacity: {item.opacity};
-              font-size: calc(1rem * {item.scale});"
+						style="--x:{item.x}; --y:{item.y}; --d:{item.depth}; --op:{item.opacity}; --sc:{item.scale};"
 					>
 						{item.text}
 					</div>
 				{/each}
 			</div>
 
-			<div bind:this={track3.sentinelEl} class="text-sentinel"></div>
-
 			<div
-				bind:this={track3.dockEl}
 				class="text-dock"
 				style="
-          --text-fix-top: {TEXT_FIX_TOP_PX}px;
-          --fs-medium: {dynamicMedium}px;
-          --fs-large: {dynamicLarge}px;
-          --text-scale: {track3.textScale};
+          --center-offset:{centerOffset('track2')};
+          --dock-opacity:{t2Fx.opacity};
+          --dock-blur:{t2Fx.blur}px;
+          --dock-scale:{t2Fx.scale};
+          --fs-medium:{dynamicMedium}px;
+          --fs-large:{dynamicLarge}px;
         "
 			>
 				<div class="text-inner">
 					<div class="revision-container">
-						{#each lines3 as line (line.text)}
+						{#each linesByTrack[1] as line (line.text)}
 							<div class="line {line.size}">
 								{#each line.words as word (word.globalIndex)}
-									<span class="word" class:active={word.globalIndex <= track3.visibleWordIndex}>
+									<span class="word" class:active={word.globalIndex <= visibleWord2}>
 										{word.text}&nbsp;
 									</span>
 								{/each}
@@ -980,41 +973,133 @@
 				</div>
 			</div>
 		</div>
-	</div>
+		<div class="spacer"></div>
+	</section>
 
-	<section class="content footer-content">
-		<div bind:this={formState.sentinelEl} class="form-sentinel"></div>
-
-		<div
-			bind:this={formState.dockEl}
-			class="form-dock"
-			style="--form-fix-top: {FORM_FIX_TOP_PX}px;"
-		>
-			<div class="form-container">
-				<div class="contact-form">
-					<input type="text" placeholder="Name" />
-					<textarea placeholder="Message" rows="4"></textarea>
-					<button>SEND</button>
+	<!-- GRID 2 -->
+	<section
+		class="scroll-track"
+		data-track="grid2"
+		bind:this={trackEls.grid2}
+		style={trackStyle('grid2')}
+	>
+		<div class="sticky-viewport">
+			<div
+				class="grid-dock"
+				style="
+          --dock-opacity:{g2Fx.opacity};
+          --dock-blur:{g2Fx.blur}px;
+          --dock-scale:{g2Fx.scale};
+          --center-offset:{centerOffset('grid2')};
+        "
+			>
+				<div class="grid-wrapper">
+					<div class="grid-uniform">
+						{#each breakthroughCells as item (item.title)}
+							<div
+								class="cell uniform-cell"
+								style="--active-color:{item.colors[0]}"
+								use:pixelHover={{ gap: 6, speed: 0.035, colors: item.colors }}
+							>
+								<canvas class="pixel-bg"></canvas>
+								<div class="cell-content">
+									<div class="cell-title">{item.title}</div>
+									<div class="cell-desc">{item.desc}</div>
+								</div>
+							</div>
+						{/each}
+					</div>
 				</div>
 			</div>
 		</div>
+		<div class="spacer"></div>
+	</section>
 
-		<div class="filler" style="height: 50vh;"></div>
+	<!-- TRACK 3 -->
+	<section
+		class="scroll-track"
+		data-track="track3"
+		bind:this={trackEls.track3}
+		style={trackStyle('track3')}
+	>
+		<div class="sticky-viewport">
+			<div
+				class="cloud-container"
+				style="--mx: {$mouseCoords.x}; --my: {$mouseCoords.y}; --sp:{pTrack3};"
+			>
+				{#each cloudItems as item (item.id)}
+					<div
+						class="cloud-item"
+						style="--x:{item.x}; --y:{item.y}; --d:{item.depth}; --op:{item.opacity}; --sc:{item.scale};"
+					>
+						{item.text}
+					</div>
+				{/each}
+			</div>
+
+			<div
+				class="text-dock"
+				style="
+          --center-offset:{centerOffset('track3')};
+          --dock-opacity:{t3Fx.opacity};
+          --dock-blur:{t3Fx.blur}px;
+          --dock-scale:{t3Fx.scale};
+          --fs-medium:{dynamicMedium}px;
+          --fs-large:{dynamicLarge}px;
+        "
+			>
+				<div class="text-inner">
+					<div class="revision-container">
+						{#each linesByTrack[2] as line (line.text)}
+							<div class="line {line.size}">
+								{#each line.words as word (word.globalIndex)}
+									<span class="word" class:active={word.globalIndex <= visibleWord3}>
+										{word.text}&nbsp;
+									</span>
+								{/each}
+							</div>
+						{/each}
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="spacer"></div>
+	</section>
+
+	<!-- FORM -->
+	<section
+		class="scroll-track"
+		data-track="form"
+		bind:this={trackEls.form}
+		style={trackStyle('form')}
+	>
+		<div class="sticky-viewport">
+			<div
+				class="form-dock"
+				style="
+          --dock-opacity:{formFx.opacity};
+          --dock-blur:{formFx.blur}px;
+          --dock-scale:{formFx.scale};
+          --center-offset:{centerOffset('form')};
+        "
+			>
+				<div class="form-container">
+					<div class="contact-form">
+						<input type="text" placeholder="Name" />
+						<textarea placeholder="Message" rows="4"></textarea>
+						<button>SEND</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="spacer"></div>
 	</section>
 </main>
 
 <style>
-	.cloud-item {
-		will-change: transform, opacity;
-	}
-
-	.logo-dock,
-	.text-dock,
-	.grid-dock,
-	.form-dock {
-		will-change: transform, top;
-	}
-
+	/* -----------------------------
+   * Core scroll model
+   * ----------------------------- */
 	main {
 		height: 100vh;
 		width: 100vw;
@@ -1022,76 +1107,11 @@
 		overflow-x: hidden;
 		position: relative;
 		background: #09090b;
+		-webkit-overflow-scrolling: touch;
 	}
 
-	/* Background layer is still fixed (not part of docking logic) */
-	.bg-fx {
-		position: fixed;
-		inset: 0;
-		z-index: 0;
-		pointer-events: none;
-	}
-
-	.intro-track {
+	.scroll-track {
 		position: relative;
-		height: 180vh;
-		z-index: 2;
-	}
-
-	.intro-sticky {
-		position: sticky;
-		top: 0;
-		height: 100vh;
-		width: 100%;
-		overflow: hidden;
-		display: grid;
-		place-items: center;
-	}
-
-	/* STICKY-ONLY LOGO DOCK (no fixed) */
-	.logo-dock {
-		position: sticky;
-		top: 40px;
-		z-index: 999;
-		pointer-events: none;
-		display: flex;
-		justify-content: center;
-
-		/* Keep your original morph motion via CSS vars */
-		transform: translateY(calc(var(--logo-top)));
-	}
-
-	.prompt {
-		position: absolute;
-		left: 50%;
-		bottom: 50px;
-		transform: translateX(-50%);
-		z-index: 4;
-		letter-spacing: 0.18em;
-		text-transform: uppercase;
-		font-size: 12px;
-		pointer-events: none;
-		text-align: center;
-		padding: 0 24px;
-		color: rgba(255, 255, 255, 0.8);
-		animation: promptFade 1.6s ease-in-out infinite;
-	}
-
-	@keyframes promptFade {
-		0%,
-		100% {
-			color: rgba(255, 255, 255, 0.8);
-		}
-		50% {
-			color: rgba(255, 255, 255, 0.3);
-		}
-	}
-
-	.message-track {
-		position: relative;
-		height: 350vh;
-		width: 100%;
-		z-index: 1;
 	}
 
 	.sticky-viewport {
@@ -1102,293 +1122,170 @@
 		overflow: hidden;
 	}
 
-	.cloud-container {
-		position: absolute;
+	/* Duration control: this is the “semantic timeline” length */
+	.spacer {
+		height: calc(var(--track-len) + 100vh);
+	}
+
+	/* -----------------------------
+   * Background FX (kept minimal)
+   * ----------------------------- */
+	.bg-fx {
+		position: fixed;
 		inset: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		z-index: 1;
-		pointer-events: none;
-		overflow: hidden;
-		perspective: 1000px;
-	}
-
-	.cloud-item {
-		position: absolute;
-		color: #a3a3a3;
-		font-family: 'Courier New', Courier, monospace;
-		left: 0;
-		top: 0;
-		white-space: nowrap;
-		transition: opacity 0.5s ease;
-	}
-
-	.text-sentinel {
-		position: absolute;
-		left: 50%;
-		top: 50%;
-		transform: translate(-50%, -50%);
-		width: 1px;
-		height: 1px;
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	/* STICKY-ONLY TEXT DOCK (no fixed) */
-	.text-dock {
-		position: sticky;
-		top: var(--text-fix-top);
-		z-index: 10;
-		width: 100%;
-		display: flex;
-		justify-content: center;
-		pointer-events: none;
-	}
-
-	.text-inner {
-		width: 100%;
-		display: flex;
-		justify-content: center;
-		transform: scale(var(--text-scale, 1));
-		transform-origin: top center;
-	}
-
-	.revision-container {
-		padding: 64px 24px;
-		color: white;
-		text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-		opacity: 1;
-		filter: blur(0px);
-		transform: scale(1);
-		transition:
-			opacity 0.8s ease,
-			filter 0.8s ease,
-			transform 0.8s ease;
-	}
-
-	.revision-container.fading {
-		opacity: 0;
-		filter: blur(12px);
-		transform: scale(0.95);
-	}
-
-	.line {
-		display: block;
-		text-align: center;
-		line-height: 1.2;
-		font-weight: 600;
-	}
-
-	.line.medium .word {
-		font-size: var(--fs-medium);
-		font-weight: 300;
-		transition: opacity 0.2s;
-	}
-
-	.line.larger .word {
-		font-size: var(--fs-large);
-		font-weight: 400;
-		transition: opacity 0.2s;
-	}
-
-	.word {
-		opacity: 0;
-		display: inline-block;
-	}
-
-	.word.active {
-		opacity: 1;
-	}
-
-	.grid-sentinel {
-		width: 100%;
-		height: 1px;
-	}
-
-	/* STICKY-ONLY GRID DOCK (no fixed) */
-	.grid-dock {
-		position: sticky;
-		top: var(--grid-fix-top);
-		z-index: 9999;
-		width: 100%;
-		pointer-events: none;
-		display: flex;
-		justify-content: center;
-	}
-
-	.grid-wrapper {
-		display: flex;
-		justify-content: center;
-		width: 100%;
-		max-width: 1000px;
-		padding: 0 24px;
-		box-sizing: border-box;
-		pointer-events: auto;
-	}
-
-	/* --- CLOUD GRID STYLES (UPDATED) --- */
-	.grid-cloud {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: 16px;
-		width: 100%;
-		max-width: 1100px;
-		margin: 0 auto;
-		pointer-events: auto;
-	}
-
-	.cell.cloud-cell {
-		flex: 1 1 auto;
-		width: auto;
-		min-width: 220px;
-		max-width: 400px;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-height: 80px;
-		padding: 0 32px;
-	}
-
-	.cell-content-wrapper {
-		position: relative;
-		z-index: 2;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		white-space: nowrap;
-		pointer-events: none;
-	}
-
-	.prefix {
-		display: inline-block;
-		font-weight: 300;
-		color: rgba(255, 255, 255, 0.6);
-		font-size: 0.95rem;
-		max-width: 0;
-		opacity: 0;
-		transform: translateX(10px);
-		overflow: hidden;
-		transition:
-			max-width 0.5s cubic-bezier(0.2, 0, 0.2, 1),
-			opacity 0.4s ease,
-			transform 0.4s ease;
-		margin-right: 0;
-	}
-
-	.cell:hover .prefix {
-		max-width: 80px;
-		opacity: 1;
-		transform: translateX(0);
-		margin-right: 6px;
-	}
-
-	.cell:hover .cell-label {
-		transform: translateX(0);
-		color: white;
-	}
-
-	.cell-label {
-		font-weight: 600;
-		font-size: 1.1rem;
-		transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
-		text-transform: capitalize;
-	}
-
-	/* --- GRID 2 (UNIFORM) --- */
-	.grid-uniform {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 16px;
-		width: 100%;
-		pointer-events: auto;
-	}
-
-	/* CELL STYLING */
-	.cell {
-		position: relative;
-		overflow: hidden;
-		isolation: isolate;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.15);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
-		font-family: inherit;
-		color: rgba(255, 255, 255, 0.9);
-		transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
-		user-select: none;
-		line-height: 1.3;
-	}
-
-	.uniform-cell {
-		min-height: 140px;
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		padding: 24px;
-		text-align: center;
-	}
-
-	.cell-content {
-		position: relative;
-		z-index: 2;
-	}
-
-	.cell-title {
-		font-weight: 600;
-		font-size: 1.1rem;
-		margin-bottom: 8px;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
-	}
-
-	.cell-desc {
-		font-size: 0.9rem;
-		color: rgba(255, 255, 255, 0.6);
-		line-height: 1.4;
-	}
-
-	.cell.fading {
-		opacity: 0;
-		transform: scale(0.9);
-		pointer-events: none;
-		filter: blur(8px);
-	}
-
-	/* Was fixed; now sticky-only "spotlight" (no fixed) */
-	.cell.is-chosen {
-		position: sticky;
-		top: 200px;
-		left: 50%;
-		transform: translateX(-50%) scale(1.2);
-		z-index: 10000;
-		margin: 0;
-		width: 300px;
-		height: 180px;
-		border-color: var(--active-color);
-		background: rgba(0, 0, 0, 0.8);
-		box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-	}
-
-	.cell:not(.selected-mode):hover {
-		background: rgba(255, 255, 255, 0.08);
-		border-color: var(--active-color, rgba(255, 255, 255, 0.9));
-		transform: translateY(-2px) scale(1.01);
-		box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-		z-index: 10;
-	}
-
-	.pixel-bg {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
 		z-index: 0;
 		pointer-events: none;
-		display: block;
+	}
+
+	.back-g {
+		width: 100vw;
+		height: 100vh;
+		position: fixed;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+		background: #101010;
+		box-shadow: inset 0 0 200px 30px black;
+	}
+
+	.gradient-bg {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		inset: 0;
+		z-index: 0;
+		overflow: hidden;
+	}
+
+	.gradients-container {
+		filter: blur(30px);
+		width: 100%;
+		height: 100%;
+		position: relative;
+		overflow: hidden;
+		opacity: 0.22;
+	}
+
+	:root {
+		--color-blue-rgb: 96, 165, 250;
+		--color-pink-rgb: 232, 121, 249;
+		--color-green-rgb: 94, 234, 212;
+	}
+
+	.g1,
+	.g2,
+	.g3,
+	.g4,
+	.g5 {
+		width: 60%;
+		height: 60%;
+		opacity: 0.7;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		position: absolute;
+		mix-blend-mode: hard-light;
+		border-radius: 50%;
+		animation-timing-function: ease-in-out;
+		will-change: transform;
+	}
+
+	.g1 {
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-blue-rgb), 0.8) 0%,
+			rgba(var(--color-blue-rgb), 0) 50%
+		);
+		animation: moveVertical 20s infinite;
+	}
+	.g2 {
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-pink-rgb), 0.8) 0%,
+			rgba(var(--color-pink-rgb), 0) 50%
+		);
+		animation: moveInCircle 18s reverse infinite;
+		transform-origin: 25% 50%;
+	}
+	.g3 {
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-green-rgb), 0.8) 0%,
+			rgba(var(--color-green-rgb), 0) 50%
+		);
+		animation: moveInCircle 30s infinite;
+		transform-origin: 75% 50%;
+	}
+	.g4 {
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-green-rgb), 0.8) 0%,
+			rgba(var(--color-green-rgb), 0) 50%
+		);
+		animation: moveHorizontal 25s infinite;
+		transform-origin: 35% 50%;
+	}
+	.g5 {
+		background: radial-gradient(
+			circle,
+			rgba(var(--color-pink-rgb), 0.8) 0%,
+			rgba(var(--color-pink-rgb), 0) 50%
+		);
+		width: 120%;
+		height: 120%;
+		animation: moveInCircle 22s infinite;
+		transform-origin: 20% 75%;
+	}
+
+	@keyframes moveInCircle {
+		0% {
+			transform: translate(-50%, -50%) rotate(0deg);
+		}
+		50% {
+			transform: translate(-50%, -50%) rotate(180deg);
+		}
+		100% {
+			transform: translate(-50%, -50%) rotate(360deg);
+		}
+	}
+	@keyframes moveVertical {
+		0% {
+			transform: translate(-50%, -40%);
+		}
+		50% {
+			transform: translate(-50%, 60%);
+		}
+		100% {
+			transform: translate(-50%, -40%);
+		}
+	}
+	@keyframes moveHorizontal {
+		0% {
+			transform: translate(-40%, -50%);
+		}
+		50% {
+			transform: translate(60%, -50%);
+		}
+		100% {
+			transform: translate(-40%, -50%);
+		}
+	}
+
+	/* -----------------------------
+   * Intro
+   * ----------------------------- */
+	.logo-dock {
+		position: absolute;
+		top: 50vh;
+		left: 0;
+		right: 0;
+		display: flex;
+		justify-content: center;
+		transform: translateY(-50%) scale(var(--intro-scale, 1));
+		opacity: var(--intro-opacity, 1);
+		filter: blur(var(--intro-blur, 0px));
+		pointer-events: none;
+		z-index: 5;
 	}
 
 	:root {
@@ -1440,61 +1337,348 @@
 		will-change: transform;
 	}
 
-	.content {
-		position: relative;
-		z-index: 2;
-		color: white;
-		padding: 80px 24px 160px;
-		max-width: 1000px;
-		margin: 0 auto;
-		min-height: 200vh;
+	.prompt {
+		position: absolute;
+		left: 50%;
+		bottom: 50px;
+		transform: translateX(-50%);
+		z-index: 6;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		font-size: 12px;
+		pointer-events: none;
+		text-align: center;
+		padding: 0 24px;
+		color: rgba(255, 255, 255, 0.8);
+		animation: promptFade 1.6s ease-in-out infinite;
 	}
 
-	.filler {
-		height: 100vh;
+	@keyframes promptFade {
+		0%,
+		100% {
+			color: rgba(255, 255, 255, 0.8);
+		}
+		50% {
+			color: rgba(255, 255, 255, 0.3);
+		}
 	}
 
-	.back-g {
-		width: 100vw;
-		height: 100vh;
-		position: fixed;
+	/* -----------------------------
+   * Cloud
+   * ----------------------------- */
+	.cloud-container {
+		position: absolute;
 		inset: 0;
-		z-index: 0;
+		z-index: 1;
+		pointer-events: none;
 		overflow: hidden;
-		background: #101010;
-		box-shadow: inset 0 0 200px 30px black;
+		perspective: 1000px;
 	}
 
-	@media (max-width: 768px) {
-		.cell.cloud-cell {
-			min-width: 100%;
-		}
-		.grid-uniform {
-			grid-template-columns: 1fr;
-		}
+	.cloud-item {
+		position: absolute;
+		color: #a3a3a3;
+		font-family: 'Courier New', Courier, monospace;
+		left: 0;
+		top: 0;
+		white-space: nowrap;
+		transition: opacity 0.5s ease;
+		opacity: var(--op);
+		font-size: calc(1rem * var(--sc));
+		will-change: transform, opacity;
+
+		transform: translate3d(calc(var(--x) * 1vw), calc(var(--y) * 1vh), 0)
+			translate3d(
+				calc(var(--mx) * var(--d) * -100px),
+				calc((var(--my) * var(--d) * -50px) + (var(--sp) * var(--d) * -400px)),
+				0
+			);
 	}
 
-	.form-sentinel {
-		width: 100%;
-		height: 1px;
+	/* -----------------------------
+   * Text dock (timeline-driven, centered)
+   * ----------------------------- */
+	.text-dock {
+		position: absolute;
+		top: calc(50vh + var(--center-offset, 0px));
+		left: 0;
+		right: 0;
+		z-index: 10;
+		display: flex;
+		justify-content: center;
+		pointer-events: none;
+
+		transform: translateY(-50%) scale(var(--dock-scale, 1));
+		opacity: var(--dock-opacity, 1);
+		filter: blur(var(--dock-blur, 0px));
+		will-change: transform, opacity, filter;
 	}
 
-	/* STICKY-ONLY FORM DOCK (no fixed) */
-	.form-dock {
-		position: sticky;
-		top: var(--form-fix-top);
-		z-index: 9999;
+	.text-inner {
 		width: 100%;
 		display: flex;
 		justify-content: center;
+		transform-origin: center;
+	}
+
+	.revision-container {
+		padding: 64px 24px;
+		color: white;
+		text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+		transition:
+			opacity 0.8s ease,
+			filter 0.8s ease,
+			transform 0.8s ease;
+	}
+
+	.revision-container.fading {
+		opacity: 0;
+		filter: blur(12px);
+		transform: scale(0.95);
+	}
+
+	.line {
+		display: block;
+		text-align: center;
+		line-height: 1.2;
+		font-weight: 600;
+	}
+
+	.line.medium .word {
+		font-size: var(--fs-medium);
+		font-weight: 300;
+		transition: opacity 0.2s;
+	}
+
+	.line.larger .word {
+		font-size: var(--fs-large);
+		font-weight: 400;
+		transition: opacity 0.2s;
+	}
+
+	.word {
+		opacity: 0;
+		display: inline-block;
+	}
+
+	.word.active {
+		opacity: 1;
+	}
+
+	/* -----------------------------
+   * Grid dock (timeline-driven, centered)
+   * ----------------------------- */
+	.grid-dock {
+		position: absolute;
+		top: calc(50vh + var(--center-offset, 0px));
+		left: 0;
+		right: 0;
+		z-index: 9999;
+		display: flex;
+		justify-content: center;
+		pointer-events: none;
+
+		transform: translateY(-50%) scale(var(--dock-scale, 1));
+		opacity: var(--dock-opacity, 1);
+		filter: blur(var(--dock-blur, 0px));
+		will-change: transform, opacity, filter;
+	}
+
+	.grid-wrapper {
+		display: flex;
+		justify-content: center;
+		width: min(1100px, calc(100vw - 48px));
+		margin: 0 auto;
+		pointer-events: auto;
+		box-sizing: border-box;
+
+		/* IMPORTANT: allow vertical scroll gestures to win on touch devices */
+		touch-action: pan-y pinch-zoom;
+	}
+
+	.grid-cloud {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 16px;
+		width: 100%;
+		pointer-events: auto;
+		touch-action: pan-y pinch-zoom;
+	}
+
+	.grid-uniform {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+		width: 100%;
+		pointer-events: auto;
+		touch-action: pan-y pinch-zoom;
+	}
+
+	.cell {
+		position: relative;
+		overflow: hidden;
+		isolation: isolate;
+		background: rgba(255, 255, 255, 0.03);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
+		color: rgba(255, 255, 255, 0.9);
+		transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+		user-select: none;
+		line-height: 1.3;
+
+		/* scroll-friendly */
+		touch-action: pan-y pinch-zoom;
+	}
+
+	.cell.cloud-cell {
+		flex: 1 1 auto;
+		min-width: 220px;
+		max-width: 400px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 80px;
+		padding: 0 32px;
+	}
+
+	.uniform-cell {
+		min-height: 140px;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		padding: 24px;
+		text-align: center;
+	}
+
+	.cell-content-wrapper {
+		position: relative;
+		z-index: 2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		white-space: nowrap;
+		pointer-events: none;
+	}
+
+	.prefix {
+		display: inline-block;
+		font-weight: 300;
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 0.95rem;
+		max-width: 0;
+		opacity: 0;
+		transform: translateX(10px);
+		overflow: hidden;
+		transition:
+			max-width 0.5s cubic-bezier(0.2, 0, 0.2, 1),
+			opacity 0.4s ease,
+			transform 0.4s ease;
+		margin-right: 0;
+	}
+
+	.cell:hover .prefix {
+		max-width: 80px;
+		opacity: 1;
+		transform: translateX(0);
+		margin-right: 6px;
+	}
+
+	.cell-label {
+		font-weight: 600;
+		font-size: 1.1rem;
+		transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+		text-transform: capitalize;
+	}
+
+	.cell:hover .cell-label {
+		transform: translateX(0);
+		color: white;
+	}
+
+	.cell-content {
+		position: relative;
+		z-index: 2;
+	}
+
+	.cell-title {
+		font-weight: 600;
+		font-size: 1.1rem;
+		margin-bottom: 8px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.cell-desc {
+		font-size: 0.9rem;
+		color: rgba(255, 255, 255, 0.6);
+		line-height: 1.4;
+	}
+
+	.pixel-bg {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 0;
+		pointer-events: none;
+		display: block;
+	}
+
+	.cell.fading {
+		opacity: 0;
+		transform: scale(0.9);
+		pointer-events: none;
+		filter: blur(8px);
+	}
+
+	.cell.is-chosen {
+		position: sticky;
+		top: 200px;
+		left: 50%;
+		transform: translateX(-50%) scale(1.2);
+		z-index: 10000;
+		margin: 0;
+		width: 300px;
+		height: 180px;
+		border-color: var(--active-color);
+		background: rgba(0, 0, 0, 0.8);
+		box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+	}
+
+	.cell:not(.selected-mode):hover {
+		background: rgba(255, 255, 255, 0.08);
+		border-color: var(--active-color, rgba(255, 255, 255, 0.9));
+		transform: translateY(-2px) scale(1.01);
+		box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+		z-index: 10;
+	}
+
+	/* -----------------------------
+   * Form (timeline-driven)
+   * ----------------------------- */
+	.form-dock {
+		position: absolute;
+		top: calc(50vh + var(--center-offset, 0px));
+		left: 0;
+		right: 0;
+		z-index: 9999;
+		display: flex;
+		justify-content: center;
+
+		transform: translateY(-50%) scale(var(--dock-scale, 1));
+		opacity: var(--dock-opacity, 1);
+		filter: blur(var(--dock-blur, 0px));
+		will-change: transform, opacity, filter;
 	}
 
 	.form-container {
-		width: 100%;
-		max-width: 500px;
+		width: min(520px, calc(100vw - 48px));
 		margin: 0 auto;
-		padding: 0 24px;
 		box-sizing: border-box;
+		pointer-events: auto;
 	}
 
 	.contact-form {
@@ -1548,171 +1732,15 @@
 		transform: scale(0.98);
 	}
 
-	:root {
-		--color-blue-rgb: 96, 165, 250;
-		--color-pink-rgb: 232, 121, 249;
-		--color-green-rgb: 94, 234, 212;
-	}
-
-	.gradient-bg {
-		width: 100%;
-		height: 100%;
-		position: absolute;
-		inset: 0;
-		z-index: 0;
-		overflow: hidden;
-	}
-
-	svg {
-		width: 0;
-		height: 0;
-	}
-
-	.gradients-container {
-		filter: url(#goo) blur(30px);
-		width: 100%;
-		height: 100%;
-		position: relative;
-		overflow: hidden;
-		opacity: 0.3;
-	}
-
-	.g1,
-	.g2,
-	.g3,
-	.g4,
-	.g5 {
-		width: 60%;
-		height: 60%;
-		opacity: 0.7;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		position: absolute;
-		mix-blend-mode: hard-light;
-		border-radius: 50%;
-		animation-timing-function: ease-in-out;
-		will-change: transform;
-	}
-
-	.g1 {
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-blue-rgb), 0.8) 0%,
-			rgba(var(--color-blue-rgb), 0) 50%
-		);
-		animation: moveVertical 20s infinite;
-		transform-origin: center;
-	}
-
-	.g2 {
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-pink-rgb), 0.8) 0%,
-			rgba(var(--color-pink-rgb), 0) 50%
-		);
-		animation: moveInCircle 18s reverse infinite;
-		transform-origin: 25% 50%;
-	}
-
-	.g3 {
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-green-rgb), 0.8) 0%,
-			rgba(var(--color-green-rgb), 0) 50%
-		);
-		animation: moveInCircle 30s infinite;
-		transform-origin: 75% 50%;
-	}
-
-	.g4 {
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-green-rgb), 0.8) 0%,
-			rgba(var(--color-green-rgb), 0) 50%
-		);
-		animation: moveHorizontal 25s infinite;
-		transform-origin: 35% 50%;
-	}
-
-	.g5 {
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-pink-rgb), 0.8) 0%,
-			rgba(var(--color-pink-rgb), 0) 50%
-		);
-		width: 120%;
-		height: 120%;
-		animation: moveInCircle 22s infinite;
-		transform-origin: 20% 75%;
-	}
-
-	.interactive {
-		width: 250px;
-		height: 250px;
-		position: absolute;
-		top: 0;
-		left: 0;
-		transform: translate3d(-50%, -50%, 0);
-		background: radial-gradient(
-			circle,
-			rgba(var(--color-green-rgb), 1) 0%,
-			rgba(var(--color-green-rgb), 0.3) 60%
-		);
-		opacity: 0.8;
-		will-change: transform;
-		pointer-events: none;
-		filter: blur(12px);
-		border: 1px solid rgba(var(--color-blue-rgb), 0.4);
-		box-shadow: 0 0 40px rgba(var(--color-blue-rgb), 0.3);
-	}
-
-	.interactive .core {
-		width: 30px;
-		height: 30px;
-		border-radius: 50%;
-		background-color: rgba(var(--color-green-rgb), 0.9);
-		box-shadow: 0 0 10px rgba(var(--color-green-rgb), 0.5);
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		pointer-events: none;
-	}
-
-	@keyframes moveInCircle {
-		0% {
-			transform: translate(-50%, -50%) rotate(0deg);
+	/* -----------------------------
+   * Mobile
+   * ----------------------------- */
+	@media (max-width: 768px) {
+		.cell.cloud-cell {
+			min-width: 100%;
 		}
-		50% {
-			transform: translate(-50%, -50%) rotate(180deg);
-		}
-		100% {
-			transform: translate(-50%, -50%) rotate(360deg);
-		}
-	}
-
-	@keyframes moveVertical {
-		0% {
-			transform: translate(-50%, -40%);
-		}
-		50% {
-			transform: translate(-50%, 60%);
-		}
-		100% {
-			transform: translate(-50%, -40%);
-		}
-	}
-
-	@keyframes moveHorizontal {
-		0% {
-			transform: translate(-40%, -50%);
-		}
-		50% {
-			transform: translate(60%, -50%);
-		}
-		100% {
-			transform: translate(-40%, -50%);
+		.grid-uniform {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>
