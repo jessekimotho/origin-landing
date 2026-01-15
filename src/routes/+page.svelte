@@ -63,8 +63,7 @@
 			label: 'Intro Logo',
 			durationPx: 1200,
 			phases: {
-				in: { at: 0.0, dur: 0.25 },
-				hold: { at: 0.25, dur: 0.55 },
+				hold: { at: 0.0, dur: 0.8 },
 				out: { at: 0.8, dur: 0.2 }
 			},
 			centerOffsetPx: 0
@@ -130,8 +129,7 @@
 			durationPx: 1600,
 			phases: {
 				in: { at: 0.0, dur: 0.18 },
-				hold: { at: 0.18, dur: 0.64 },
-				out: { at: 0.82, dur: 0.18 }
+				hold: { at: 0.18, dur: 0.82 }
 			},
 			centerOffsetPx: 0
 		}
@@ -151,7 +149,7 @@
 	}
 
 	function inHoldOut(p: number, phases: Phases) {
-		const pin = phaseValue(p, phases.in);
+		const pin = phases.in ? phaseValue(p, phases.in) : 1;
 		const pout = phaseValue(p, phases.out);
 		const envelope = clamp01(pin * (1 - pout));
 
@@ -1199,30 +1197,6 @@
 								{/each}
 							</div>
 						{/each}
-					</div>
-				</div>
-			</div>
-		</div>
-		<div class="spacer"></div>
-	</section>
-
-	<!-- FORM -->
-	<section class="scroll-track" bind:this={trackEls.form} style={trackStyle('form')}>
-		<div class="sticky-viewport">
-			<div
-				class="form-dock"
-				style="
-          --dock-opacity:{formFx.opacity};
-          --dock-blur:{formFx.blur}px;
-          --dock-scale:{formFx.scale};
-          --center-offset:{centerOffset('form')};
-        "
-			>
-				<div class="form-container">
-					<div class="contact-form">
-						<input type="text" placeholder="Name" />
-						<textarea placeholder="Message" rows="4"></textarea>
-						<button>SEND</button>
 					</div>
 				</div>
 			</div>
