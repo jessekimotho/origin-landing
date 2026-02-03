@@ -35,23 +35,23 @@
 	$: dist = Math.sqrt(dx * dx + dy * dy);
 	$: prox = Math.max(0, 1 - dist / 350);
 
-	// Combined focus score (0 to 1)
-	$: focus = Math.min(1, clarity + prox * 0.8);
+	// Only apply proximity if the item is within its active timeline
+	$: activeProx = clarity > 0.01 ? prox : 0;
 </script>
 
 <div
 	class="star-fact-container"
 	style:left="{slot.x}%"
 	style:top="{slot.y}%"
-	style:opacity={Math.max(0.01, focus)}
+	style:opacity={clarity}
 	style:transform="translate3d(calc({$mouseCoords.x} * {slot.depth} * -40px), calc({$mouseCoords.y} *
-	{slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + focus * 0.15})"
+	{slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + activeProx * 0.35})"
 >
 	<p
 		class="fact-text"
 		class:in-focus={clarity === 1}
-		style:color="rgba(255, 255, 255, {0.5 + prox * 0.5})"
-		style:text-shadow="0 0 {prox * 15}px rgba(255, 255, 255, {prox * 0.6})"
+		style:color="rgba(255, 255, 255, {0.5 + activeProx * 0.5})"
+		style:text-shadow="0 0 {activeProx * 15}px rgba(255, 255, 255, {activeProx * 0.6})"
 	>
 		{slot.text}
 	</p>

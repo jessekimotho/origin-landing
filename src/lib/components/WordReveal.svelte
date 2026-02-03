@@ -65,9 +65,9 @@
 	.line {
 		display: block;
 		text-align: center;
-		line-height: 1.2; /* Slightly looser for better wrap readability */
+		line-height: 1.5;
+		margin-bottom: 0;
 		font-family: 'Exposure', serif;
-		margin-bottom: 0.2em; /* Proportional spacing between blocks */
 	}
 
 	.line:last-child {
@@ -84,6 +84,7 @@
 	/* Tier 2: Small (The Bridge) */
 	.line.small {
 		font-size: 1.8rem;
+		line-height: 2;
 	}
 
 	/* Tier 3: Large (The Statement) */
@@ -91,7 +92,6 @@
 		font-size: 3.25rem;
 		font-weight: 700; /* Heavier for the large statement */
 		letter-spacing: -0.05em; /* Tighter kerning for impact */
-		line-height: 1.2; /* Keep large text tighter */
 	}
 
 	.word {
@@ -132,7 +132,6 @@
 			font-size: 1.5rem;
 		}
 		.line {
-			line-height: 1.5 !important;
 		}
 	}
 </style>

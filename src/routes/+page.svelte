@@ -35,16 +35,25 @@
 		const breakthroughSelection = shuffle(FACT_POOLS.breakthroughs).slice(0, 2);
 		const finalSelection = shuffle(FACT_POOLS.final).slice(0, 1);
 
-		const locationPool = shuffle([
-			{ x: 5, y: 15 },
-			{ x: 82, y: 18 },
-			{ x: 8, y: 75 },
-			{ x: 75, y: 80 },
-			{ x: 45, y: 12 }
-		]);
+		// Bias shuffle to separate close neighbors
+		let locationPool: { x: number; y: number }[] = [];
+		let validShuffle = false;
+		while (!validShuffle) {
+			locationPool = shuffle([
+				{ x: 5, y: 15 },
+				{ x: 75, y: 18 },
+				{ x: 8, y: 85 },
+				{ x: 75, y: 83 },
+				{ x: 77, y: 80 }
+			]);
+			const p1 = locationPool.findIndex((l) => l.x === 75);
+			const p2 = locationPool.findIndex((l) => l.x === 80);
+			if (Math.abs(p1 - p2) > 1) validShuffle = true;
+		}
 
 		const depths = shuffle([0.7, 1.0, 1.2, 1.5, 1.8]);
 
+		// Reduced overlap timings
 		activeSlots = [
 			{ ...locationPool[0], text: burdenSelection[0], start: 0.1, end: 0.35, depth: depths[0] },
 			{ ...locationPool[1], text: burdenSelection[1], start: 0.18, end: 0.4, depth: depths[1] },
