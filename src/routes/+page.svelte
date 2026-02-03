@@ -21,8 +21,12 @@
 		return [...array].sort(() => Math.random() - 0.5);
 	}
 
-	onMount(() => {
+	function updateHeight() {
 		scrollHeight = document.documentElement.scrollHeight;
+	}
+
+	onMount(() => {
+		updateHeight();
 		window.addEventListener('mousemove', handleGlobalMouseMove);
 
 		const burdenSelection = shuffle(FACT_POOLS.burden).slice(0, 2);
@@ -74,33 +78,45 @@
 
 	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
-	// --- LOGO PERSISTENCE LOGIC ---
+	// --- LOGO PERSISTENCE ---
 	$: logoMorphProgress = getProgress(y, 0, 1200);
 	$: logoTopPosition = 50 - 44 * logoMorphProgress;
 
-	// --- VANISHING PROMPT LOGIC ---
+	// --- PROMPT VANISH ---
 	$: promptFade = getProgress(y, 0, 400);
 	$: promptOpacity = 1 - promptFade;
 	$: promptBlur = promptFade * 20;
 	$: promptTranslate = promptFade * -20;
 
-	// Sections
-	$: t1Progress = getProgress(y, 1500, 6000);
-	$: t1TextReveal = getProgress(t1Progress, 0, 0.3);
-	$: gridReveal = getProgress(t1Progress, 0.2, 0.6);
-	$: t1Exit = getProgress(t1Progress, 0.95, 1);
+	// --- SECTION 1 (IDENTITY) ---
+	// Total Range
+	$: t1Progress = getProgress(y, 1000, 8000); // 7000px duration
 
-	$: t2Progress = getProgress(y, 6500, 10500);
+	// 1. SETTLING ENGINE (The "Come Up" Effect)
+	// From 0% to 35% of the section scroll, we reduce the offset from 25vh to 0vh
+	$: t1SettleProgress = getProgress(t1Progress, 0, 0.35);
+	$: t1YOffset = (1 - t1SettleProgress) * 25; // result is in 'vh'
+
+	// 2. TEXT & GRID TIMING
+	$: t1TextReveal = getProgress(t1Progress, 0, 0.3); // Reveal text while rising
+	$: gridReveal = getProgress(t1Progress, 0.25, 0.6); // Grid starts fading in as we settle
+
+	// 3. EXIT
+	$: t1Exit = getProgress(t1Progress, 0.85, 1);
+
+	// --- SECTION 2 (BREAKTHROUGHS) ---
+	$: t2Progress = getProgress(y, 8500, 13000);
 	$: t2TextReveal = getProgress(t2Progress, 0, 0.4);
-	$: t2Exit = getProgress(t2Progress, 0.95, 1);
+	$: t2Exit = getProgress(t2Progress, 0.9, 1);
 
-	$: finalProgress = getProgress(y, 11000, 13500);
+	// --- FINAL SECTION ---
+	$: finalProgress = getProgress(y, 13500, 16000);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
 
 	let isGeneralModalOpen = false;
 </script>
 
-<svelte:window bind:scrollY={y} bind:innerHeight bind:outerHeight={scrollHeight} />
+<svelte:window bind:scrollY={y} bind:innerHeight on:resize={updateHeight} />
 
 <GooeyBackground />
 <AuroraProgress progress={overallProgress} />
@@ -128,7 +144,6 @@
 		<div class="logo-wrapper" style="top: {logoTopPosition}%;">
 			<Logo progress={logoMorphProgress} />
 		</div>
-
 		<div
 			class="prompt"
 			style="opacity: {promptOpacity}; filter: blur({promptBlur}px); transform: translateY({promptTranslate}px);"
@@ -139,12 +154,19 @@
 
 	<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
 		{#if t1Progress > 0 && t1Progress < 1}
-			<section class="stage-container" style:opacity={1 - t1Exit}>
+			<section
+				class="stage-container"
+				style="
+                    opacity: {1 - t1Exit};
+                    filter: blur({t1Exit * 20}px);
+                    transform: translateY({t1YOffset}vh) scale({1 - t1Exit * 0.05}) translateZ(0);
+                "
+			>
 				<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
+
 				<div
 					class="identity-grid-wrapper pointer-events-auto"
-					style="opacity: {gridReveal}; filter: blur({(1 - gridReveal) *
-						20}px); transform: translateZ(0);"
+					style="opacity: {gridReveal}; filter: blur({(1 - gridReveal) * 20}px);"
 				>
 					<div class="identity-grid">
 						{#each PERSONAS as p}
@@ -156,7 +178,11 @@
 		{/if}
 
 		{#if t2Progress > 0 && t2Progress < 1}
-			<section class="stage-container" style:opacity={1 - t2Exit}>
+			<section
+				class="stage-container"
+				style:opacity={1 - t2Exit}
+				style:filter="blur({t2Exit * 20}px)"
+			>
 				<WordReveal lines={NARRATIVE_CONTENT.bottom} progress={t2TextReveal} />
 			</section>
 		{/if}
@@ -164,7 +190,7 @@
 		{#if finalProgress > 0}
 			<section class="stage-container">
 				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
-				<div class="cta-wrapper pointer-events-auto mt-4" style:opacity={buttonOpacity}>
+				<div class="cta-wrapper pointer-events-auto" style:opacity={buttonOpacity}>
 					<button class="get-started" on:click={() => (isGeneralModalOpen = true)}>
 						Get Started
 					</button>
@@ -173,7 +199,7 @@
 		{/if}
 	</div>
 
-	<div class="relative" style="height: 14000px;"></div>
+	<div class="relative" style="height: 18000px;"></div>
 </main>
 
 <RoleModal
@@ -225,42 +251,6 @@
 		will-change: transform, opacity;
 		backface-visibility: hidden;
 	}
-
-	@media (max-width: 768px) {
-		.star-fact-container {
-			width: 200px;
-			max-width: 40vw;
-		}
-
-		.fact-text {
-			font-size: 0.75rem;
-		}
-
-		.prompt {
-			font-size: 0.65rem;
-			width: 90%;
-			text-align: center;
-			white-space: normal;
-			line-height: 1.4;
-		}
-
-		.logo-wrapper {
-			transform: translateY(-50%) scale(0.75);
-		}
-
-		.identity-grid {
-			padding: 0 16px;
-			width: 100%;
-			box-sizing: border-box;
-		}
-	}
-
-	@media (max-width: 480px) {
-		.logo-wrapper {
-			transform: translateY(-50%) scale(0.55);
-		}
-	}
-
 	.star-fact-container::before {
 		content: '';
 		flex-shrink: 0;
@@ -284,6 +274,7 @@
 		align-items: center;
 		justify-content: center;
 		contain: content;
+		will-change: opacity, transform, filter;
 	}
 	.identity-grid-wrapper {
 		width: 100%;
@@ -319,5 +310,36 @@
 	}
 	.star-container {
 		opacity: 0.8;
+	}
+
+	@media (max-width: 768px) {
+		.star-fact-container {
+			width: 200px;
+			max-width: 40vw;
+		}
+		.fact-text {
+			font-size: 0.75rem;
+		}
+		.prompt {
+			font-size: 0.65rem;
+			width: 90%;
+			text-align: center;
+			white-space: normal;
+			line-height: 1.4;
+		}
+		.logo-wrapper {
+			transform: translateY(-50%) scale(0.75);
+		}
+		.identity-grid {
+			padding: 0 16px;
+			width: 100%;
+			box-sizing: border-box;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.logo-wrapper {
+			transform: translateY(-50%) scale(0.55);
+		}
 	}
 </style>
