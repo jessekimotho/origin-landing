@@ -59,33 +59,39 @@
 		max-width: 1200px;
 		margin: 0 auto;
 		margin-top: 40px;
-		gap: 0.8em;
+		/* gap removed in favor of em-based margins on lines for proportional spacing */
 	}
 
 	.line {
 		display: block;
 		text-align: center;
-		line-height: 1.1;
+		line-height: 1.2; /* Slightly looser for better wrap readability */
 		font-family: 'Exposure', serif;
+		margin-bottom: 0.2em; /* Proportional spacing between blocks */
+	}
+
+	.line:last-child {
+		margin-bottom: 0;
 	}
 
 	/* Tier 1: Medium (The Intro) */
-	.line.medium .word {
+	.line.medium {
 		font-size: 2.75rem;
 		font-weight: 300;
 		letter-spacing: -0.01em;
 	}
 
 	/* Tier 2: Small (The Bridge) */
-	.line.small .word {
+	.line.small {
 		font-size: 1.8rem;
 	}
 
 	/* Tier 3: Large (The Statement) */
-	.line.large .word {
+	.line.large {
 		font-size: 3.25rem;
 		font-weight: 700; /* Heavier for the large statement */
 		letter-spacing: -0.05em; /* Tighter kerning for impact */
+		line-height: 1.2; /* Keep large text tighter */
 	}
 
 	.word {
@@ -116,14 +122,17 @@
 	}
 
 	@media (max-width: 768px) {
-		.line.medium .word {
-			font-size: 1.7rem;
+		.line.medium {
+			font-size: 1.4rem;
 		}
-		.line.small .word {
-			font-size: 1.3rem;
+		.line.small {
+			font-size: 1.2rem;
 		}
-		.line.large .word {
-			font-size: 2.2rem;
+		.line.large {
+			font-size: 1.5rem;
+		}
+		.line {
+			line-height: 1.2;
 		}
 	}
 </style>

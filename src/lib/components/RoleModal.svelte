@@ -141,17 +141,18 @@
 	.role-dialog {
 		background: transparent;
 		border: none;
-		padding: 0;
+		padding: 20px;
 		margin: 0;
 		outline: none;
 		position: fixed;
 		inset: 0;
-		width: 100vw;
+		min-width: 100vw;
 		height: 100vh;
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center;
-		overflow: hidden;
+		justify-content: flex-start; /* Allow content to flow naturally */
+		overflow-y: auto; /* The dialog itself becomes the scroll container */
 		z-index: 9999;
 	}
 
@@ -177,15 +178,15 @@
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		width: 100%;
 		max-width: 540px;
-		margin: 0 16px;
+		margin: auto; /* Vertically centers when short, flows when tall */
 		border-radius: 32px;
 		padding: 48px;
 		box-shadow: 0 40px 120px -20px rgba(0, 0, 0, 0.8);
 		color: white;
 		position: relative;
 		box-sizing: border-box;
-		max-height: 90vh;
-		overflow-y: auto;
+		/* Removed max-height constraints to allow natural growth */
+		/* Removed overflow-y: auto since the parent now scrolls */
 	}
 
 	.close-btn {

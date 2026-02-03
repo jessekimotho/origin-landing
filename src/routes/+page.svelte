@@ -234,9 +234,7 @@
 			<section class="stage-container">
 				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
 				<div class="cta-wrapper pointer-events-auto" style:opacity={buttonOpacity}>
-					<button class="get-started" on:click={openGeneralModal}>
-						Get Started
-					</button>
+					<button class="get-started" on:click={openGeneralModal}> Get Started </button>
 				</div>
 			</section>
 		{/if}
