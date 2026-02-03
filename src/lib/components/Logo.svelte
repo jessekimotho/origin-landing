@@ -52,8 +52,8 @@
 		scaleAmount = 1;
 		outerSize = 80;
 		innerSize = 20;
-		outerBorder = 4;
-		innerBorder = 4;
+		outerBorder = 5;
+		innerBorder = 5;
 		shapeMorph = 0;
 		opacityInner = 1;
 		skewX = 0;
@@ -254,29 +254,41 @@
 	$: morphT = Math.min(progress / 0.6, 1);
 	$: logoGap = 64 - morphT * 48;
 	$: letterSpacing = 32 - Math.pow(morphT, 0.5) * 28;
-	$: scrollScale = 1 - morphT * 0.45; // Shrinks mark to 55%
-	$: scrollFontSize = 40 - morphT * 18; // Shrinks font to 22px
+
+	// Default Logic (Desktop)
+	// Default Logic (Desktop)
+	// We handle the scale base in CSS now, but we need to pass the animation modifiers
 </script>
 
-<div class="logo-group" on:click={handleInteraction}>
-	<div class="logo-mark" style="gap: {logoGap}px;">
+<div
+	class="logo-group"
+	on:click={handleInteraction}
+	style="
+		--morph-t: {morphT};
+		--gap: {logoGap}px;
+		--spacing: {letterSpacing}px;
+		
+		/* Js Animation Variables */
+		--anim-scale: {scaleAmount};
+		--anim-scale-y: {scaleAmount * scaleY};
+		--anim-skew-x: {skewX}deg;
+		--anim-skew-y: {skewY}deg;
+		--anim-width: {outerSize}px;
+		--anim-height: {outerSize}px;
+		--anim-border: {outerBorder}px;
+		--anim-time: {transitionTime}s;
+	"
+>
+	<div class="logo-mark">
 		<div
 			class="origin-logo"
 			class:is-squircle={shapeMorph === 1}
 			class:is-square={shapeMorph === 2}
-			style="
-				width: {outerSize}px; 
-				height: {outerSize}px;
-				border-width: {outerBorder}px;
-				transform: 
-					scale({scrollScale * scaleAmount}, {scrollScale * scaleAmount * scaleY}) 
-					skew({skewX}deg, {skewY}deg);
-				transition-duration: {transitionTime}s;
-			"
+			style="transform: scale(calc(var(--base-scale) * var(--anim-scale)), calc(var(--base-scale) * var(--anim-scale-y))) skew(var(--anim-skew-x), var(--anim-skew-y));"
 		>
 			<div
 				class="orbit-container"
-				style="transform: rotate({rotation}deg); transition-duration: {transitionTime}s;"
+				style="transform: rotate({rotation}deg); transition-duration: {transitionTime}s; "
 			>
 				<div
 					class="inner-circle"
@@ -294,12 +306,7 @@
 				></div>
 			</div>
 		</div>
-		<div
-			class="rest-of-word"
-			style="letter-spacing: {letterSpacing}px; font-size: {scrollFontSize}px;"
-		>
-			ORIGIN
-		</div>
+		<div class="rest-of-word" style="letter-spacing: var(--spacing); ">ORIGIN</div>
 	</div>
 </div>
 
@@ -308,16 +315,20 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-
 		pointer-events: auto;
+
+		/* desktop default: shrinks from 1.0 to 0.55 */
+		--base-scale: calc(1 - var(--morph-t) * 0.45);
+		--base-font: calc(40px - var(--morph-t) * 18px);
+		--base-gap: calc(64px - var(--morph-t) * 48px);
 	}
-	.logo-mark {
-		display: flex;
-		align-items: center;
-		color: #fff;
-	}
+
 	.origin-logo {
+		width: var(--anim-width);
+		height: var(--anim-height);
+		transition-duration: var(--anim-time);
 		border: solid currentColor;
+		border-width: var(--anim-border);
 		border-radius: 50%;
 		position: relative;
 		cursor: pointer;
@@ -327,34 +338,70 @@
 		transition-property: all;
 		transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
-	.is-squircle {
-		border-radius: 20% !important;
+
+	.origin-logo.is-squircle,
+	.inner-circle.is-squircle {
+		border-radius: 25% !important;
 	}
-	.is-square {
+
+	.origin-logo.is-square,
+	.inner-circle.is-square {
 		border-radius: 0% !important;
 	}
+
 	.orbit-container {
-		position: absolute;
 		width: 100%;
 		height: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition-property: transform;
-		transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-	}
-	.inner-circle {
 		position: absolute;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		pointer-events: none;
+	}
+
+	.inner-circle {
 		border: solid currentColor;
 		border-radius: 50%;
+		box-sizing: border-box;
 		transition-property: all;
 		transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
+
+	.logo-mark {
+		display: flex;
+		align-items: center;
+		color: #fff;
+		gap: var(--base-gap);
+	}
+
 	.rest-of-word {
 		font-family: 'BankGothic', sans-serif !important;
 		color: #fff;
 		font-weight: 300;
 		pointer-events: none;
 		user-select: none;
+		font-size: var(--base-font);
+	}
+
+	/* TABLET / LARGE MOBILE */
+	@media (max-width: 768px) {
+		.logo-group {
+			/* Start: 0.85 -> End: 0.55 */
+			--base-scale: calc(0.85 - var(--morph-t) * 0.3);
+			/* Start: 34px -> End: 22px */
+			--base-font: calc(34px - var(--morph-t) * 12px);
+			--base-gap: calc(48px - var(--morph-t) * 36px);
+		}
+	}
+
+	/* SMALL MOBILE */
+	@media (max-width: 480px) {
+		.logo-group {
+			/* Start: 0.70 -> End: 0.55 */
+			--base-scale: calc(0.7 - var(--morph-t) * 0.15);
+			/* Start: 28px -> End: 22px */
+			--base-font: calc(28px - var(--morph-t) * 6px);
+			--base-gap: calc(32px - var(--morph-t) * 24px);
+		}
 	}
 </style>

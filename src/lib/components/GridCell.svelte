@@ -8,7 +8,7 @@
 		Donor: { border: '#38bdf8', bg: '#14445aa3', text: '#b7e9ff' },
 		Investor: { border: '#4ade80', bg: '#163a24a3', text: '#c2ffd9' },
 		Policymaker: { border: '#60a5fa', bg: '#1e3a8aa3', text: '#bfdbfe' },
-		'Public Figure': { border: '#ffffff', bg: '#3f3f46a3', text: '#fafafa' },
+		'Public Figure': { border: '#e879f9', bg: '#701a75a3', text: '#fae8ff' },
 		'Content Creator': { border: '#facc15', bg: '#3e3612a3', text: '#fff1b7' },
 		'Health Player': { border: '#a78bfa', bg: '#2e1f4aa3', text: '#e9dfff' },
 		Patient: { border: '#22d3ee', bg: '#103e46a3', text: '#b7f4ff' },

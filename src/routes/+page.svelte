@@ -10,6 +10,7 @@
 	import Logo from '$lib/components/Logo.svelte';
 	import AuroraProgress from '$lib/components/AuroraProgress.svelte';
 	import RoleModal from '$lib/components/RoleModal.svelte';
+	import FactNode from '$lib/components/FactNode.svelte';
 
 	let y = 0;
 	let innerHeight = 0;
@@ -73,14 +74,6 @@
 		return Math.min(Math.max((scroll - start) / (end - start), 0), 1);
 	};
 
-	function getClarity(progress: number, start: number, end: number) {
-		const fade = 0.08;
-		if (progress < start || progress > end) return 0;
-		if (progress > start + fade && progress < end - fade) return 1;
-		if (progress <= start + fade) return (progress - start) / fade;
-		return (end - progress) / fade;
-	}
-
 	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
 	// --- LOGO PERSISTENCE ---
@@ -133,7 +126,7 @@
 	function openGeneralModal() {
 		modalProps = {
 			label: 'curious about Origin?',
-			style: { border: '', bg: '', text: '' },
+			style: { border: '#f43f5e', bg: '#881337a3', text: '#ffe4e6' },
 			article: ''
 		};
 		isModalOpen = true;
@@ -147,36 +140,7 @@
 
 <div class="star-container pointer-events-none fixed inset-0 z-0" style="contain: strict;">
 	{#each activeSlots as slot}
-		{@const clarity = getClarity(overallProgress, slot.start, slot.end)}
-
-		<!-- Proximity Logic -->
-		{@const mx = ($mouseCoords.x + 0.5) * innerWidth}
-		{@const my = ($mouseCoords.y + 0.5) * innerHeight}
-		{@const sx = (slot.x / 100) * innerWidth}
-		{@const sy = (slot.y / 100) * innerHeight}
-		{@const dx = mx - sx}
-		{@const dy = my - sy}
-		{@const dist = Math.sqrt(dx * dx + dy * dy)}
-		{@const prox = Math.max(0, 1 - dist / 350)}
-		{@const focus = Math.min(1, clarity + prox * 0.8)}
-
-		<div
-			class="star-fact-container"
-			style:left="{slot.x}%"
-			style:top="{slot.y}%"
-			style:opacity={Math.max(0.01, focus)}
-			style:transform="translate3d(calc({$mouseCoords.x} * {slot.depth} * -40px), calc({$mouseCoords.y}
-			* {slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + focus * 0.15})"
-		>
-			<p
-				class="fact-text"
-				class:in-focus={clarity === 1}
-				style:color="rgba(255, 255, 255, {0.5 + prox * 0.5})"
-				style:text-shadow="0 0 {prox * 15}px rgba(255, 255, 255, {prox * 0.6})"
-			>
-				{slot.text}
-			</p>
-		</div>
+		<FactNode {slot} {overallProgress} {innerWidth} {innerHeight} />
 	{/each}
 </div>
 
@@ -285,30 +249,7 @@
 			color: rgba(255, 255, 255, 0.7);
 		}
 	}
-	.star-fact-container {
-		position: absolute;
-		width: 320px;
-		display: flex;
-		align-items: flex-start;
-		gap: 20px;
-		will-change: transform, opacity;
-		backface-visibility: hidden;
-	}
-	.star-fact-container::before {
-		content: '';
-		flex-shrink: 0;
-		width: 2px;
-		height: 100%;
-		min-height: 40px;
-		background: rgba(255, 255, 255, 0.4);
-	}
-	.fact-text {
-		font-size: 0.85rem;
-		line-height: 1.6;
-		color: rgba(255, 255, 255, 0.5);
-		font-weight: 300;
-		margin: 0;
-	}
+
 	.stage-container {
 		position: absolute;
 		width: 100%;
@@ -338,6 +279,7 @@
 		backdrop-filter: blur(10px);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		color: #fff;
+		margin-top: -16px;
 		padding: 14px 40px;
 		border-radius: 100px;
 		font-family: 'Exposure', serif;
@@ -356,13 +298,6 @@
 	}
 
 	@media (max-width: 768px) {
-		.star-fact-container {
-			width: 200px;
-			max-width: 40vw;
-		}
-		.fact-text {
-			font-size: 0.75rem;
-		}
 		.prompt {
 			font-size: 0.65rem;
 			width: 90%;
@@ -370,19 +305,10 @@
 			white-space: normal;
 			line-height: 1.4;
 		}
-		.logo-wrapper {
-			transform: translateY(-50%) scale(0.75);
-		}
 		.identity-grid {
 			padding: 0 24px;
 			width: 100%;
 			box-sizing: border-box;
-		}
-	}
-
-	@media (max-width: 480px) {
-		.logo-wrapper {
-			transform: translateY(-50%) scale(0.55);
 		}
 	}
 </style>
