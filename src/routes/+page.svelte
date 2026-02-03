@@ -12,15 +12,20 @@
 	import GridCell from '$lib/components/GridCell.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+	import AuroraProgress from '$lib/components/AuroraProgress.svelte';
 
 	// 1. GLOBAL SCROLL STATE
 	let y = 0;
 	let innerHeight = 0;
+	let scrollHeight = 0;
 
 	// 2. TIMELINE UTILITIES
 	const getProgress = (scroll: number, start: number, end: number) => {
 		return Math.min(Math.max((scroll - start) / (end - start), 0), 1);
 	};
+
+	// Calculate absolute page progress (0 to 1)
+	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
 	// --- MILESTONES (Pixel values) ---
 	$: introProgress = getProgress(y, 0, 800);
@@ -60,12 +65,13 @@
 	const jsonLdString = `<script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>`;
 
 	onMount(() => {
+		scrollHeight = document.documentElement.scrollHeight;
 		window.addEventListener('mousemove', handleGlobalMouseMove);
 		return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
 	});
 </script>
 
-<svelte:window bind:scrollY={y} bind:innerHeight />
+<svelte:window bind:scrollY={y} bind:innerHeight bind:outerHeight={scrollHeight} />
 
 <svelte:head>
 	<title>Actualfood | Breakthroughs Against Chronic Disease</title>
@@ -79,6 +85,7 @@
 <ThemeToggle />
 <GooeyBackground />
 <FactCloud facts={CLINICAL_FACTS} scrollProgress={t1Progress + t2Progress} />
+<AuroraProgress progress={overallProgress} />
 
 <main>
 	<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
@@ -98,7 +105,6 @@
 					>
 						<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
 					</div>
-
 					<div
 						class="identity-grid-wrapper pointer-events-auto"
 						style:opacity={t1GridEnter}
@@ -126,7 +132,6 @@
 					<div style:transform="translateY({t2GridEnter * -30}px)">
 						<WordReveal lines={NARRATIVE_CONTENT.bottom} progress={t2TextReveal} />
 					</div>
-
 					<div
 						class="grid-container pointer-events-auto"
 						style:opacity={t2GridEnter}
@@ -148,6 +153,7 @@
 		{#if finalProgress > 0}
 			<section class="stage-container" aria-label="Final Call">
 				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
+				<button class="get-started">Get Started</button>
 			</section>
 		{/if}
 	</div>
@@ -156,7 +162,6 @@
 </main>
 
 <style>
-	/* GLOBAL STYLES */
 	:global(body) {
 		margin: 0;
 		padding: 0;
@@ -165,7 +170,6 @@
 		font-family: 'Inter', system-ui, sans-serif;
 		overflow-x: hidden;
 	}
-
 	:global(html) {
 		--bg: #09090b;
 		--text: #ffffff;
@@ -173,18 +177,14 @@
 		--blue-rgb: 56, 189, 248;
 		--pink-rgb: 232, 121, 249;
 		--green-rgb: 34, 197, 94;
-
 		--fs-medium: clamp(1.2rem, 2.5vw, 2.2rem);
 		--fs-large: clamp(1.8rem, 4vw, 3.4rem);
 	}
-
 	:global(html[data-theme='light']) {
 		--bg: #f6f7fb;
 		--text: #0c0c14;
 		--muted: rgba(0, 0, 0, 0.5);
 	}
-
-	/* ACCESSIBILITY */
 	.sr-only {
 		position: absolute;
 		width: 1px;
@@ -196,7 +196,6 @@
 		white-space: nowrap;
 		border-width: 0;
 	}
-
 	.stage-container {
 		position: absolute;
 		width: 100%;
@@ -208,7 +207,6 @@
 		justify-content: center;
 		will-change: transform, opacity;
 	}
-
 	.identity-grid {
 		display: flex;
 		flex-wrap: wrap;
@@ -218,21 +216,18 @@
 		max-width: 900px;
 		margin-top: -30px;
 	}
-
 	.grid-container {
 		width: 100%;
 		max-width: 800px;
 		padding: 0 24px;
 		margin: 0 auto;
 	}
-
 	.breakthrough-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 20px;
 		width: 100%;
 	}
-
 	@media (max-width: 768px) {
 		.breakthrough-grid {
 			grid-template-columns: 1fr;
