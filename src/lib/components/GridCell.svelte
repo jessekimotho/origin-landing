@@ -76,7 +76,7 @@
 		position: relative;
 		overflow: hidden;
 		background: rgba(255, 255, 255, 0.05);
-		backdrop-filter: blur(20px);
+		z-index: 10;
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 6px;
 		transition:

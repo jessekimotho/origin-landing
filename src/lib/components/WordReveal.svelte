@@ -67,7 +67,7 @@
 		text-align: center;
 		line-height: 1.5;
 		margin-bottom: 0;
-		font-family: 'Exposure', serif;
+		font-family: 'Exposure';
 	}
 
 	.line:last-child {

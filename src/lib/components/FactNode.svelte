@@ -67,6 +67,7 @@
 		will-change: transform, opacity;
 		backface-visibility: hidden;
 		pointer-events: none; /* Ensure it doesn't block mouse interactions */
+		z-index: -1;
 	}
 
 	.star-fact-container::before {

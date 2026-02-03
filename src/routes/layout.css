@@ -42,16 +42,15 @@ BODY {
 	outline: none !important;
 }
 
-/* 3. Exposure for Headers and Titles */
-:global(h1),
-:global(h2),
-:global(h3),
-:global(h4),
-:global(h5),
-:global(h6),
+H1,
+H2,
+H3,
+H4,
+H5,
+H6,
 .exposure-title,
-:global(.breakthrough-title) {
-	font-family: 'Exposure', sans-serif !important;
+.breakthrough-title {
+	font-family: 'Exposure' !important;
 	font-weight: 700;
 	letter-spacing: -0.02em; /* Exposure often looks better tighter */
 	line-height: 1.1;
