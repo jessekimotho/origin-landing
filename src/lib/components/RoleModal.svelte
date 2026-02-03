@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 	import { cubicOut, quintOut } from 'svelte/easing';
+	import { ROLE_COPY } from '$lib/constants';
 
 	export let isOpen = false;
 	export let label = '';
@@ -11,35 +12,7 @@
 	const dispatch = createEventDispatcher();
 	let dialog: HTMLDialogElement;
 
-	const roleCopy: Record<string, { desc: string; placeholder: string }> = {
-		Patient: {
-			desc: 'Your biological data is the foundational evidence for the next era of medicine. Together, we can architect your metabolic resilience and turn personal insights into global breakthroughs.',
-			placeholder: "Tell us about your health goals or the specific challenges you're facing..."
-		},
-		Clinician: {
-			desc: 'Bridge the gap between clinical theory and real-time metabolic reality. Join our network to deploy high-fidelity monitoring and precision interventions directly to the bedside.',
-			placeholder:
-				'Tell us about your specialization or how you want to integrate precision data...'
-		},
-		Investor: {
-			desc: "The transition from reactive care to proactive sensing is the most significant shift in the history of human health. Let's discuss scaling the infrastructure for the longevity economy.",
-			placeholder: "Tell us about your fund's focus or investment criteria..."
-		},
-		Researcher: {
-			desc: 'Access the high-fidelity, continuous biomarker streams required to validate next-generation therapeutics. Help us refine the digital twin models that will define future outcomes.',
-			placeholder: 'Tell us about your current research area or data requirements...'
-		},
-		Partner: {
-			desc: "Actualfood is an open-architecture platform. Let's explore how our metabolic sensing layers can integrate with your ecosystem to create a unified front against chronic decay.",
-			placeholder: 'Tell us about your platform and your vision for integration...'
-		},
-		default: {
-			desc: 'The resolution of chronic disease requires a collective shift in how we sense, analyze, and act upon biological data. Join us in architecting a more resilient future.',
-			placeholder: 'How can you help? Tell us about your unique background...'
-		}
-	};
-
-	$: activeCopy = roleCopy[label] || roleCopy['default'];
+	$: activeCopy = ROLE_COPY[label] || ROLE_COPY['default'];
 
 	$: if (dialog) {
 		if (isOpen) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { handleGlobalMouseMove, mouseCoords } from '$lib/stores';
-	import { NARRATIVE_CONTENT, PERSONAS, FACT_POOLS } from '$lib/constants';
+	import { NARRATIVE_CONTENT, PERSONAS, FACT_POOLS, STAR_COORDINATES } from '$lib/constants';
 
 	// Components
 	import GooeyBackground from '$lib/components/GooeyBackground.svelte';
@@ -40,19 +40,12 @@
 
 		if (window.innerWidth <= 768) {
 			// Mobile: Alternate top/bottom on left side
-			const top = { x: 23, y: 20 };
-			const btm = { x: 23, y: 80 };
-			locationPool = [top, btm, top, btm, top];
+			const { top, bottom } = STAR_COORDINATES.mobile;
+			locationPool = [top, bottom, top, bottom, top];
 		} else {
 			let validShuffle = false;
 			while (!validShuffle) {
-				locationPool = shuffle([
-					{ x: 5, y: 15 },
-					{ x: 75, y: 18 },
-					{ x: 8, y: 85 },
-					{ x: 75, y: 83 },
-					{ x: 77, y: 80 }
-				]);
+				locationPool = shuffle(STAR_COORDINATES.desktop);
 				const p1 = locationPool.findIndex((l) => l.x === 75);
 				const p2 = locationPool.findIndex((l) => l.x === 80);
 				if (Math.abs(p1 - p2) > 1) validShuffle = true;
@@ -128,14 +121,7 @@
 	$: finalProgress = getProgress(y, 13500, 16000);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
 
-	$: finalLines =
-		innerWidth <= 768
-			? [
-					{ size: 'medium', text: 'The fight against' },
-					{ size: 'medium', text: 'Chronic Disease' },
-					{ size: 'large', text: 'starts with you.' }
-				]
-			: NARRATIVE_CONTENT.final;
+	$: finalLines = innerWidth <= 768 ? NARRATIVE_CONTENT.finalMobile : NARRATIVE_CONTENT.final;
 
 	let isModalOpen = false;
 	let modalProps = {

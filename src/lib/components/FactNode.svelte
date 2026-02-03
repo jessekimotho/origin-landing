@@ -32,15 +32,17 @@
 		const my = ($mouseCoords.y + 0.5) * innerHeight;
 		const sx = (slot.x / 100) * innerWidth;
 		const sy = (slot.y / 100) * innerHeight;
-		const dx = mx - sx;
-		const dy = my - sy;
 
-		// Use 350 as the proximity radius
-		const dist = Math.sqrt(dx * dx + dy * dy);
-		const prox = Math.max(0, 1 - dist / 350);
+		const dx = Math.abs(mx - sx);
+		const dy = Math.abs(my - sy);
 
-		// Only apply proximity if the item is within its active timeline
-		activeProx = prox;
+		// Bounding box check to avoid expensive square root
+		if (dx < 350 && dy < 350) {
+			const dist = Math.sqrt(dx * dx + dy * dy);
+			activeProx = Math.max(0, 1 - dist / 350);
+		} else {
+			activeProx = 0;
+		}
 	} else {
 		activeProx = 0;
 	}
