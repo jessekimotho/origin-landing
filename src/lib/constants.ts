@@ -28,17 +28,17 @@ export const CLINICAL_FACTS = [
 export const NARRATIVE_CONTENT = {
 	top: [
 		{ size: 'medium', text: 'Chronic Disease' },
-		{ size: 'small', text: 'lies in wait for all of us' },
-		{ size: 'large', text: 'We all have the right to contribute' }
+		{ size: 'small', text: 'lies in wait for all of us.' },
+		{ size: 'large', text: 'We all have the right to contribute.' }
 	] as LineData[],
 	bottom: [
 		{ size: 'medium', text: 'Breakthroughs are being made' },
-		{ size: 'small', text: 'against chronic disease' },
-		{ size: 'large', text: 'Together we can ensure they make it to patients' }
+		{ size: 'small', text: 'against chronic disease.' },
+		{ size: 'large', text: 'Together we can ensure they make it to patients.' }
 	] as LineData[],
 	final: [
 		{ size: 'medium', text: 'The fight against Chronic Disease' },
-		{ size: 'large', text: 'starts with you' }
+		{ size: 'large', text: 'starts with you.' }
 	] as LineData[]
 };
 

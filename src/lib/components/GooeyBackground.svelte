@@ -57,6 +57,7 @@
 		position: fixed;
 		inset: 0;
 		z-index: 0;
+		opacity: 0.3;
 		pointer-events: none;
 		background: var(--bg);
 	}

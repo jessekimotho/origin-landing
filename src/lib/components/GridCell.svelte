@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import RoleModal from './RoleModal.svelte'; // Import the new modal
+	import RoleModal from './RoleModal.svelte';
 
 	export let label: string = '';
 	export let type: 'identity' | 'uniform' = 'identity';
+	export let revealProgress: number = 1; // Default to visible if not passed
 
 	const roleStyles: Record<string, { border: string; bg: string; text: string }> = {
 		Donor: { border: '#38bdf8', bg: '#14445aa3', text: '#b7e9ff' },
 		Investor: { border: '#4ade80', bg: '#163a24a3', text: '#c2ffd9' },
-		// Strengthened Colors
 		Policymaker: { border: '#60a5fa', bg: '#1e3a8aa3', text: '#bfdbfe' },
 		'Public Figure': { border: '#ffffff', bg: '#3f3f46a3', text: '#fafafa' },
 		'Content Creator': { border: '#facc15', bg: '#3e3612a3', text: '#fff1b7' },
@@ -24,7 +24,7 @@
 
 	let prefixEl: HTMLSpanElement;
 	let shiftAmount = 0;
-	let isModalOpen = false; // Modal State
+	let isModalOpen = false;
 
 	async function calculateShift() {
 		await tick();
@@ -45,6 +45,11 @@
         --active-bg: {style.bg}; 
         --active-text: {style.text};
         --shift: {shiftAmount}px;
+
+        /* GAUSSIAN BLUR FADE ENGINE */
+        opacity: {revealProgress};
+        filter: blur({(1 - revealProgress) * 20}px);
+        transform: translateY({(1 - revealProgress) * 30}px);
     "
 >
 	<div class="hover-glow"></div>
@@ -70,20 +75,23 @@
 		position: relative;
 		overflow: hidden;
 		isolation: isolate;
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.05);
 		backdrop-filter: blur(40px);
 		-webkit-backdrop-filter: blur(40px);
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 6px;
-		transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+		transition:
+			background 0.4s ease,
+			border-color 0.4s ease;
 		cursor: pointer;
 		display: inline-flex;
+		will-change: transform, opacity, filter;
 	}
 
 	.cell:hover {
 		background: var(--active-bg);
 		border-color: var(--active-border);
-		transform: translateY(-2px);
+		transform: translateY(-2px) !important; /* Force hover transform over scroll transform */
 	}
 
 	.hover-glow {
@@ -113,9 +121,7 @@
 		white-space: nowrap;
 		visibility: hidden;
 		pointer-events: none;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		/* Include the gap in the sizer width */
+		font-weight: 500;
 		padding-right: 0.5rem;
 	}
 
@@ -124,13 +130,11 @@
 		display: flex;
 		align-items: center;
 		white-space: nowrap;
-		/* STARTS OFF-CENTERED LEFT: This makes the Label appear centered */
 		transform: translateX(calc(var(--shift) * -1));
 		transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
 	.cell:hover .animator {
-		/* ANIMATES TO ZERO: All text is now centered as a group */
 		transform: translateX(0);
 	}
 
@@ -154,19 +158,19 @@
 		letter-spacing: 0.04em;
 		color: #ffffffb5;
 		transition: color 0.3s ease;
+		font-weight: 500;
 	}
 
 	.cell:hover .cell-label {
 		color: var(--active-text);
 	}
-
 	.identity-cell {
 		flex: 0 0 auto;
 	}
-
 	.uniform-cell {
 		min-height: 120px;
 		padding: 24px;
 		text-align: center;
+		width: 100%;
 	}
 </style>
