@@ -18,14 +18,11 @@
 	let innerHeight = 0;
 
 	// 2. TIMELINE UTILITIES
-	// Maps a scroll range [start, end] to a [0, 1] progress value
 	const getProgress = (scroll: number, start: number, end: number) => {
 		return Math.min(Math.max((scroll - start) / (end - start), 0), 1);
 	};
 
 	// --- MILESTONES (Pixel values) ---
-
-	// Section 0: Logo Intro
 	$: introProgress = getProgress(y, 0, 800);
 	$: introOpacity = 1 - getProgress(y, 600, 900);
 
@@ -33,25 +30,34 @@
 	$: t1ScrollStart = 900;
 	$: t1ScrollEnd = 3500;
 	$: t1Progress = getProgress(y, t1ScrollStart, t1ScrollEnd);
-
-	// Inside T1: Break down the "Reveal" vs "Grid Appearance"
-	$: t1TextReveal = getProgress(t1Progress, 0, 0.6); // Finish words by 60% of section
-	$: t1GridEnter = getProgress(t1Progress, 0.5, 0.9); // Start grid at 50%
-	$: t1Exit = getProgress(t1Progress, 0.9, 1); // Fade out whole section at end
+	$: t1TextReveal = getProgress(t1Progress, 0, 0.6);
+	$: t1GridEnter = getProgress(t1Progress, 0.5, 0.9);
+	$: t1Exit = getProgress(t1Progress, 0.9, 1);
 
 	// Section 2: Narrative 2 + Breakthroughs
 	$: t2ScrollStart = 3800;
 	$: t2ScrollEnd = 6500;
 	$: t2Progress = getProgress(y, t2ScrollStart, t2ScrollEnd);
-
 	$: t2TextReveal = getProgress(t2Progress, 0, 0.5);
 	$: t2GridEnter = getProgress(t2Progress, 0.4, 0.8);
 	$: t2Exit = getProgress(t2Progress, 0.9, 1);
 
 	// Section 3: Final Call
 	$: finalStart = 6800;
-	$: finalEnd = 8000;
+	$: finalEnd = 8500;
 	$: finalProgress = getProgress(y, finalStart, finalEnd);
+
+	// 3. SEO JSON-LD
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		name: 'Actualfood',
+		url: 'https://actualfood.com',
+		description:
+			'Accelerating breakthroughs against chronic disease through technology and community.',
+		knowsAbout: ['Health Innovation', 'Biotechnology', 'Chronic Disease Research']
+	};
+	const jsonLdString = `<script type="application/ld+json">${JSON.stringify(jsonLd)}<\/script>`;
 
 	onMount(() => {
 		window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -61,78 +67,96 @@
 
 <svelte:window bind:scrollY={y} bind:innerHeight />
 
+<svelte:head>
+	<title>Actualfood | Breakthroughs Against Chronic Disease</title>
+	<meta
+		name="description"
+		content="Actualfood is a mission-driven tech company focused on solving chronic disease."
+	/>
+	{@html jsonLdString}
+</svelte:head>
+
 <ThemeToggle />
 <GooeyBackground />
 <FactCloud facts={CLINICAL_FACTS} scrollProgress={t1Progress + t2Progress} />
 
-<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
-	{#if y < 1000}
-		<div style:opacity={introOpacity} style:transform="scale({1 + introProgress * 0.05})">
-			<Logo progress={introProgress} />
-		</div>
-	{/if}
+<main>
+	<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
+		{#if y < 1000}
+			<div style:opacity={introOpacity} style:transform="scale({1 + introProgress * 0.05})">
+				<Logo progress={introProgress} />
+			</div>
+		{/if}
 
-	{#if t1Progress > 0 && t1Progress < 1}
-		<div class="stage-container" style:opacity={1 - t1Exit}>
-			<div class="flex w-full flex-col items-center">
-				<div
-					style:transform="translateY({t1GridEnter * -40}px)"
-					style:opacity={1 - t1GridEnter * 0.5}
-				>
-					<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
-				</div>
+		{#if t1Progress > 0 && t1Progress < 1}
+			<section class="stage-container" aria-label="Our Mission" style:opacity={1 - t1Exit}>
+				<h1 class="sr-only">Actualfood is a movement against chronic disease.</h1>
+				<div class="flex w-full flex-col items-center">
+					<div
+						style:transform="translateY({t1GridEnter * -40}px)"
+						style:opacity={1 - t1GridEnter * 0.5}
+					>
+						<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
+					</div>
 
-				<div
-					class="identity-grid-wrapper pointer-events-auto"
-					style:opacity={t1GridEnter}
-					style:transform="translateY({(1 - t1GridEnter) * 60}px) scale({0.95 +
-						t1GridEnter * 0.05})"
-				>
-					<div class="identity-grid">
-						{#each PERSONAS as p}
-							<GridCell type="identity" label={p.label} />
-						{/each}
+					<div
+						class="identity-grid-wrapper pointer-events-auto"
+						style:opacity={t1GridEnter}
+						style:transform="translateY({(1 - t1GridEnter) * 60}px) scale({0.95 +
+							t1GridEnter * 0.05})"
+					>
+						<div class="identity-grid">
+							{#each PERSONAS as p}
+								<GridCell type="identity" label={p.label} />
+							{/each}
+						</div>
 					</div>
 				</div>
-			</div>
-		</div>
-	{/if}
+			</section>
+		{/if}
 
-	{#if t2Progress > 0 && t2Progress < 1}
-		<div class="stage-container" style:opacity={1 - t2Exit}>
-			<div class="flex w-full flex-col items-center">
-				<div style:transform="translateY({t2GridEnter * -30}px)">
-					<WordReveal lines={NARRATIVE_CONTENT.bottom} progress={t2TextReveal} />
-				</div>
+		{#if t2Progress > 0 && t2Progress < 1}
+			<section
+				class="stage-container"
+				aria-label="Medical Breakthroughs"
+				style:opacity={1 - t2Exit}
+			>
+				<h2 class="sr-only">Our breakthroughs in medical technology.</h2>
+				<div class="flex w-full flex-col items-center">
+					<div style:transform="translateY({t2GridEnter * -30}px)">
+						<WordReveal lines={NARRATIVE_CONTENT.bottom} progress={t2TextReveal} />
+					</div>
 
-				<div
-					class="grid-container pointer-events-auto"
-					style:opacity={t2GridEnter}
-					style:transform="translateY({(1 - t2GridEnter) * 40}px)"
-				>
-					<div class="breakthrough-grid">
-						{#each BREAKTHROUGHS as b}
-							<GridCell type="uniform">
-								<span class="breakthrough-title">{b.title}</span>
-								<p class="breakthrough-desc">{b.desc}</p>
-							</GridCell>
-						{/each}
+					<div
+						class="grid-container pointer-events-auto"
+						style:opacity={t2GridEnter}
+						style:transform="translateY({(1 - t2GridEnter) * 40}px)"
+					>
+						<div class="breakthrough-grid">
+							{#each BREAKTHROUGHS as b}
+								<GridCell type="uniform">
+									<span class="breakthrough-title">{b.title}</span>
+									<p class="breakthrough-desc">{b.desc}</p>
+								</GridCell>
+							{/each}
+						</div>
 					</div>
 				</div>
-			</div>
-		</div>
-	{/if}
+			</section>
+		{/if}
 
-	{#if finalProgress > 0}
-		<div class="stage-container">
-			<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
-		</div>
-	{/if}
-</div>
+		{#if finalProgress > 0}
+			<section class="stage-container" aria-label="Final Call">
+				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
+			</section>
+		{/if}
+	</div>
 
-<div class="relative" style="height: 9000px;"></div>
+	<div class="relative" style="height: 9000px;"></div>
+</main>
 
 <style>
+	/* GLOBAL STYLES */
 	:global(body) {
 		margin: 0;
 		padding: 0;
@@ -146,43 +170,31 @@
 		--bg: #09090b;
 		--text: #ffffff;
 		--muted: rgba(255, 255, 255, 0.4);
-		--card: rgba(255, 255, 255, 0.04);
-		--card-hover: rgba(255, 255, 255, 0.08);
-		--border: rgba(255, 255, 255, 0.1);
-		--border-strong: rgba(255, 255, 255, 0.25);
-
-		/* Brand Colors for Blobs & Shimmer */
 		--blue-rgb: 56, 189, 248;
 		--pink-rgb: 232, 121, 249;
 		--green-rgb: 34, 197, 94;
 
 		--fs-medium: clamp(1.2rem, 2.5vw, 2.2rem);
 		--fs-large: clamp(1.8rem, 4vw, 3.4rem);
-		--text-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
 	}
 
 	:global(html[data-theme='light']) {
 		--bg: #f6f7fb;
 		--text: #0c0c14;
 		--muted: rgba(0, 0, 0, 0.5);
-		--card: rgba(0, 0, 0, 0.03);
-		--border: rgba(0, 0, 0, 0.1);
-		--border-strong: rgba(0, 0, 0, 0.18);
-		--text-shadow: none;
 	}
 
-	main {
-		position: relative;
-		z-index: 10;
-	}
-
-	.grid-container {
-		width: 100%;
-		max-width: 600px;
-		padding: 0 24px;
-		margin: 0 auto;
-		display: flex;
-		justify-content: center;
+	/* ACCESSIBILITY */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
 	}
 
 	.stage-container {
@@ -204,7 +216,14 @@
 		gap: 8px;
 		width: 100%;
 		max-width: 900px;
-		margin-top: -40px;
+		margin-top: -30px;
+	}
+
+	.grid-container {
+		width: 100%;
+		max-width: 800px;
+		padding: 0 24px;
+		margin: 0 auto;
 	}
 
 	.breakthrough-grid {

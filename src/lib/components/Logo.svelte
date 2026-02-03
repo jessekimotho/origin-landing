@@ -45,26 +45,25 @@
 		color: var(--text);
 	}
 	.origin-logo {
-		width: 50px;
-		height: 50px;
-		border: 3px solid currentColor;
+		width: 80px;
+		height: 80px;
+		border: 5px solid currentColor;
 		border-radius: 50%;
 		position: relative;
 	}
 	.inner-circle {
 		position: absolute;
-		width: 20px;
-		height: 20px;
-		border: 3px solid currentColor;
+		width: 26px;
+		height: 26px;
+		border: 5px solid currentColor;
 		border-radius: 50%;
 		top: 50%;
 		left: 50%;
 		will-change: transform;
 	}
 	.rest-of-word {
-		font-size: 20px;
-		font-weight: 600;
-		/* Ensure font color is sharp */
+		font-size: 40px;
+		font-family: 'BankGothic' !important;
 		color: var(--text);
 	}
 </style>

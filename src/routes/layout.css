@@ -8,6 +8,11 @@
 	src: url('fonts/ExposureTrialVAR.ttf') format('truetype');
 }
 
+@font-face {
+	font-family: 'BankGothic';
+	src: url('fonts/BankGothicBold.ttf') format('truetype');
+}
+
 /**************************/
 /*GLOBAL STYLES*/
 * {
