@@ -4,14 +4,14 @@
 /* FONT DEFINITIONS */
 @font-face {
 	font-family: 'Exposure';
-	src: url('fonts/ExposureTrialVAR.ttf') format('truetype');
+	src: url('/fonts/ExposureTrialVAR.ttf') format('truetype');
 	font-weight: 100 900; /* Assuming it's a variable font */
 	font-display: swap;
 }
 
 @font-face {
 	font-family: 'BankGothic';
-	src: url('fonts/BankGothicBold.ttf') format('truetype');
+	src: url('/fonts/BankGothicBold.ttf') format('truetype');
 	font-display: swap;
 }
 
