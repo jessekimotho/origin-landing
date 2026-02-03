@@ -6,6 +6,7 @@
 	let bubbleY = 0;
 	let bubbleTargetX = 0;
 	let bubbleTargetY = 0;
+	let animationFrameId: number;
 
 	function animateBubble() {
 		const ease = 0.12;
@@ -15,11 +16,14 @@
 		bubbleX += (bubbleTargetX - bubbleX) * ease;
 		bubbleY += (bubbleTargetY - bubbleY) * ease;
 
-		requestAnimationFrame(animateBubble);
+		animationFrameId = requestAnimationFrame(animateBubble);
 	}
 
 	onMount(() => {
 		animateBubble();
+		return () => {
+			if (animationFrameId) cancelAnimationFrame(animationFrameId);
+		};
 	});
 </script>
 

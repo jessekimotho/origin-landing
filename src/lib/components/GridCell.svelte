@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
-	import RoleModal from './RoleModal.svelte';
+	import { onMount, tick, createEventDispatcher } from 'svelte';
 
 	export let label: string = '';
 	export let type: 'identity' | 'uniform' = 'identity';
@@ -23,7 +22,7 @@
 
 	let prefixEl: HTMLSpanElement;
 	let shiftAmount = 0;
-	let isModalOpen = false;
+	const dispatch = createEventDispatcher();
 
 	async function calculateShift() {
 		await tick();
@@ -37,11 +36,17 @@
 	});
 
 	$: (label, calculateShift());
+
+	function handleClick() {
+		if (type === 'identity') {
+			dispatch('open', { label, style, article });
+		}
+	}
 </script>
 
 <div
 	class="cell {type}-cell"
-	on:click={() => type === 'identity' && (isModalOpen = true)}
+	on:click={handleClick}
 	style="
         --active-border: {style.border}; 
         --active-bg: {style.bg}; 
@@ -65,8 +70,6 @@
 		{/if}
 	</div>
 </div>
-
-<RoleModal isOpen={isModalOpen} {label} {style} {article} on:close={() => (isModalOpen = false)} />
 
 <style>
 	.cell {

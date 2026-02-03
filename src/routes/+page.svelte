@@ -13,6 +13,7 @@
 
 	let y = 0;
 	let innerHeight = 0;
+	let innerWidth = 0;
 	let scrollHeight = 0;
 
 	let activeSlots: any[] = [];
@@ -62,6 +63,10 @@
 			},
 			{ ...locationPool[4], text: finalSelection[0], start: 0.7, end: 1, depth: depths[4] }
 		];
+
+		return () => {
+			window.removeEventListener('mousemove', handleGlobalMouseMove);
+		};
 	});
 
 	const getProgress = (scroll: number, start: number, end: number) => {
@@ -113,10 +118,29 @@
 	$: finalProgress = getProgress(y, 13500, 16000);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
 
-	let isGeneralModalOpen = false;
+	let isModalOpen = false;
+	let modalProps = {
+		label: '',
+		style: { border: '', bg: '', text: '' },
+		article: ''
+	};
+
+	function openModal(detail: any) {
+		modalProps = detail;
+		isModalOpen = true;
+	}
+
+	function openGeneralModal() {
+		modalProps = {
+			label: 'curious about Origin?',
+			style: { border: '', bg: '', text: '' },
+			article: ''
+		};
+		isModalOpen = true;
+	}
 </script>
 
-<svelte:window bind:scrollY={y} bind:innerHeight on:resize={updateHeight} />
+<svelte:window bind:scrollY={y} bind:innerHeight bind:innerWidth on:resize={updateHeight} />
 
 <GooeyBackground />
 <AuroraProgress progress={overallProgress} />
@@ -124,15 +148,34 @@
 <div class="star-container pointer-events-none fixed inset-0 z-0" style="contain: strict;">
 	{#each activeSlots as slot}
 		{@const clarity = getClarity(overallProgress, slot.start, slot.end)}
+
+		<!-- Proximity Logic -->
+		{@const mx = ($mouseCoords.x + 0.5) * innerWidth}
+		{@const my = ($mouseCoords.y + 0.5) * innerHeight}
+		{@const sx = (slot.x / 100) * innerWidth}
+		{@const sy = (slot.y / 100) * innerHeight}
+		{@const dx = mx - sx}
+		{@const dy = my - sy}
+		{@const dist = Math.sqrt(dx * dx + dy * dy)}
+		{@const prox = Math.max(0, 1 - dist / 350)}
+		{@const focus = Math.min(1, clarity + prox * 0.8)}
+
 		<div
 			class="star-fact-container"
 			style:left="{slot.x}%"
 			style:top="{slot.y}%"
-			style:opacity={Math.max(0.01, clarity)}
+			style:opacity={Math.max(0.01, focus)}
 			style:transform="translate3d(calc({$mouseCoords.x} * {slot.depth} * -40px), calc({$mouseCoords.y}
-			* {slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + clarity * 0.08})"
+			* {slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + focus * 0.15})"
 		>
-			<p class="fact-text" class:in-focus={clarity === 1}>{slot.text}</p>
+			<p
+				class="fact-text"
+				class:in-focus={clarity === 1}
+				style:color="rgba(255, 255, 255, {0.5 + prox * 0.5})"
+				style:text-shadow="0 0 {prox * 15}px rgba(255, 255, 255, {prox * 0.6})"
+			>
+				{slot.text}
+			</p>
 		</div>
 	{/each}
 </div>
@@ -170,7 +213,7 @@
 				>
 					<div class="identity-grid">
 						{#each PERSONAS as p}
-							<GridCell type="identity" label={p.label} />
+							<GridCell type="identity" label={p.label} on:open={(e) => openModal(e.detail)} />
 						{/each}
 					</div>
 				</div>
@@ -191,7 +234,7 @@
 			<section class="stage-container">
 				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
 				<div class="cta-wrapper pointer-events-auto" style:opacity={buttonOpacity}>
-					<button class="get-started" on:click={() => (isGeneralModalOpen = true)}>
+					<button class="get-started" on:click={openGeneralModal}>
 						Get Started
 					</button>
 				</div>
@@ -203,9 +246,11 @@
 </main>
 
 <RoleModal
-	isOpen={isGeneralModalOpen}
-	label="curious about Origin?"
-	on:close={() => (isGeneralModalOpen = false)}
+	isOpen={isModalOpen}
+	label={modalProps.label}
+	style={modalProps.style}
+	article={modalProps.article}
+	on:close={() => (isModalOpen = false)}
 />
 
 <style>

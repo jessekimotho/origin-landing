@@ -3,7 +3,7 @@
 </script>
 
 <div class="aurora-track">
-	<div class="aurora-fill" style:width="{progress * 100}%">
+	<div class="aurora-fill" style:transform="scaleX({progress})">
 		<div class="aurora-glow"></div>
 	</div>
 </div>
@@ -24,8 +24,10 @@
 
 	.aurora-fill {
 		height: 100%;
+		width: 100%;
+		transform-origin: left;
 		position: relative;
-		transition: width 0.1s ease-out;
+		transition: transform 0.1s ease-out;
 		border-radius: 10px;
 		filter: blur(5px);
 		opacity: 0.3; /* Increased slightly to balance the blur */
