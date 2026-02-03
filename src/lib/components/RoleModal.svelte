@@ -11,6 +11,7 @@
 
 	const dispatch = createEventDispatcher();
 	let dialog: HTMLDialogElement;
+	let formElement: HTMLFormElement;
 
 	$: activeCopy = ROLE_COPY[label] || ROLE_COPY['default'];
 
@@ -24,6 +25,7 @@
 	}
 
 	function handleClose() {
+		if (formElement) formElement.reset();
 		dispatch('close');
 	}
 
@@ -48,6 +50,7 @@
 	<dialog
 		bind:this={dialog}
 		on:click|self={handleClose}
+		on:cancel|preventDefault={handleClose}
 		on:outroend={onOutroEnd}
 		class="role-dialog"
 		style="--role-color: {style.border}; --role-text: {style.text}"
@@ -78,7 +81,7 @@
 				</p>
 			</header>
 
-			<form on:submit|preventDefault={handleClose}>
+			<form on:submit|preventDefault={handleClose} bind:this={formElement} autocomplete="off">
 				<div class="input-row">
 					<div class="input-group">
 						<label for="name">Name</label>
