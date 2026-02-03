@@ -4,27 +4,6 @@ export interface LineData {
 	text: string;
 }
 
-export const CLINICAL_FACTS = [
-	'HbA1c > 6.5%',
-	'Hypertension',
-	'Dyslipidemia',
-	'Insulin Resistance',
-	'BMI > 30',
-	'Chronic Inflammation',
-	'Oxidative Stress',
-	'Metabolic Syndrome',
-	'Sedentary Behavior',
-	'Glycemic Variability',
-	'Beta-cell Failure',
-	'Endothelial Dysfunction',
-	'Atherosclerosis',
-	'GFR < 60',
-	'Neuropathy',
-	'Retinopathy',
-	'Cortisol Spikes',
-	'Sleep Apnea'
-];
-
 export const NARRATIVE_CONTENT = {
 	top: [
 		{ size: 'medium', text: 'Chronic Disease' },

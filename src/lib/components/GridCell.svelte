@@ -91,7 +91,6 @@
 	.cell:hover {
 		background: var(--active-bg);
 		border-color: var(--active-border);
-		transform: translateY(-2px) !important; /* Force hover transform over scroll transform */
 	}
 
 	.hover-glow {
