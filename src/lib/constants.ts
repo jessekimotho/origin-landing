@@ -30,7 +30,7 @@ export const SEO_CONFIG = {
 	description:
 		'The fight against Chronic Disease starts with you. Join the movement to shift culture from reactive disease management to proactive metabolic health.',
 	url: 'https://origin.org', // TODO: Update with actual domain
-	ogImage: 'https://origin.org/og-image.jpg', // TODO: Update with actual image path
+	ogImage: 'https://origin-home.vercel.app/og-image.jpg', // TODO: Update with actual image path
 	twitterHandle: '@origin' // TODO: Update with actual handle
 };
 
