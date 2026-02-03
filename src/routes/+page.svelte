@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { handleGlobalMouseMove, mouseCoords } from '$lib/stores';
-	import { NARRATIVE_CONTENT, PERSONAS } from '$lib/constants';
+	import { NARRATIVE_CONTENT, PERSONAS, FACT_POOLS } from '$lib/constants';
 
 	// Components
 	import GooeyBackground from '$lib/components/GooeyBackground.svelte';
@@ -15,35 +15,6 @@
 	let innerHeight = 0;
 	let scrollHeight = 0;
 
-	const pools = {
-		burden: [
-			'Chronic metabolic dysfunction now precedes clinical diagnosis by up to a decade.',
-			'Insulin resistance often begins in the liver years before blood glucose levels spike.',
-			'Chronic disease accounts for 71% of all deaths globally.',
-			'Metabolic health is the primary driver of all-cause mortality in the modern age.',
-			'Liver fat accumulation is the hidden driver of early metabolic decay.',
-			'Cellular damage compounds long before it reflects in standard blood panels.',
-			'Precision nutrition is impossible without real-time glucose monitoring.',
-			'The biological cost of stress is measurable at the chromosomal level.'
-		],
-		breakthroughs: [
-			'Precision CRISPR-Cas9 editing offers a permanent resolution to genetic drivers.',
-			'Digital twins allow us to simulate therapeutic outcomes with high-fidelity.',
-			'Wearable bio-interfaces detect systemic shifts 48 hours before symptoms appear.',
-			'Continuous biomarker streams are replacing static annual blood panels.',
-			'AI Digital Twins can now predict disease onset with 94% accuracy.',
-			'Targeted gene therapies are moving from rare diseases to chronic care.',
-			'Biosensors now track inflammation cycles with millisecond precision.',
-			'Decentralized trials accelerate drug discovery by up to 5 years.'
-		],
-		final: [
-			'Your biological data is the most valuable currency in the fight for longevity.',
-			'Collective data contribution is the fastest path to metabolic resilience.',
-			'Decentralized research puts the power of discovery back in your hands.',
-			'The future of medicine is proactive, personalized, and patient-driven.'
-		]
-	};
-
 	let activeSlots: any[] = [];
 
 	function shuffle<T>(array: T[]): T[] {
@@ -54,9 +25,9 @@
 		scrollHeight = document.documentElement.scrollHeight;
 		window.addEventListener('mousemove', handleGlobalMouseMove);
 
-		const burdenSelection = shuffle(pools.burden).slice(0, 2);
-		const breakthroughSelection = shuffle(pools.breakthroughs).slice(0, 2);
-		const finalSelection = shuffle(pools.final).slice(0, 1);
+		const burdenSelection = shuffle(FACT_POOLS.burden).slice(0, 2);
+		const breakthroughSelection = shuffle(FACT_POOLS.breakthroughs).slice(0, 2);
+		const finalSelection = shuffle(FACT_POOLS.final).slice(0, 1);
 
 		const locationPool = shuffle([
 			{ x: 5, y: 15 },
@@ -103,18 +74,26 @@
 
 	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
-	// Section 1
+	// --- LOGO PERSISTENCE LOGIC ---
+	$: logoMorphProgress = getProgress(y, 0, 1200);
+	$: logoTopPosition = 50 - 44 * logoMorphProgress;
+
+	// --- VANISHING PROMPT LOGIC ---
+	$: promptFade = getProgress(y, 0, 400);
+	$: promptOpacity = 1 - promptFade;
+	$: promptBlur = promptFade * 20;
+	$: promptTranslate = promptFade * -20;
+
+	// Sections
 	$: t1Progress = getProgress(y, 1500, 6000);
 	$: t1TextReveal = getProgress(t1Progress, 0, 0.3);
 	$: gridReveal = getProgress(t1Progress, 0.2, 0.6);
 	$: t1Exit = getProgress(t1Progress, 0.95, 1);
 
-	// Section 2
 	$: t2Progress = getProgress(y, 6500, 10500);
 	$: t2TextReveal = getProgress(t2Progress, 0, 0.4);
 	$: t2Exit = getProgress(t2Progress, 0.95, 1);
 
-	// Final Stage
 	$: finalProgress = getProgress(y, 11000, 13500);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
 
@@ -143,25 +122,29 @@
 </div>
 
 <main>
-	<div class="fixed inset-0 z-20 flex items-center justify-center">
-		{#if y < 1400}
-			<div style:opacity={1 - getProgress(y, 900, 1300)}>
-				<Logo progress={getProgress(y, 0, 1300)} />
-			</div>
-		{/if}
+	<div
+		class="pointer-events-none fixed top-0 left-0 z-50 flex h-full w-full flex-col items-center justify-center"
+	>
+		<div class="logo-wrapper" style="top: {logoTopPosition}%;">
+			<Logo progress={logoMorphProgress} />
+		</div>
 
+		<div
+			class="prompt"
+			style="opacity: {promptOpacity}; filter: blur({promptBlur}px); transform: translateY({promptTranslate}px);"
+		>
+			Scroll BELOW to access the site
+		</div>
+	</div>
+
+	<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
 		{#if t1Progress > 0 && t1Progress < 1}
 			<section class="stage-container" style:opacity={1 - t1Exit}>
 				<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
-
 				<div
-					class="identity-grid-wrapper pointer-events-auto mt-8"
-					style="
-						opacity: {gridReveal};
-						filter: blur({(1 - gridReveal) * 20}px);
-						/* No translate shift here - just static blur in position */
-						transform: translateZ(0);
-					"
+					class="identity-grid-wrapper pointer-events-auto"
+					style="opacity: {gridReveal}; filter: blur({(1 - gridReveal) *
+						20}px); transform: translateZ(0);"
 				>
 					<div class="identity-grid">
 						{#each PERSONAS as p}
@@ -208,7 +191,31 @@
 		overflow-x: hidden;
 		overscroll-behavior: none;
 	}
-
+	.logo-wrapper {
+		position: absolute;
+		transform: translateY(-50%);
+		z-index: 50;
+	}
+	.prompt {
+		position: absolute;
+		bottom: 50px;
+		font-size: 0.75rem;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.5);
+		pointer-events: none;
+		animation: promptPulse 2s ease-in-out infinite;
+		will-change: transform, opacity, filter;
+	}
+	@keyframes promptPulse {
+		0%,
+		100% {
+			color: rgba(255, 255, 255, 0.3);
+		}
+		50% {
+			color: rgba(255, 255, 255, 0.7);
+		}
+	}
 	.star-fact-container {
 		position: absolute;
 		width: 320px;
@@ -218,7 +225,6 @@
 		will-change: transform, opacity;
 		backface-visibility: hidden;
 	}
-
 	.star-fact-container::before {
 		content: '';
 		flex-shrink: 0;
@@ -227,21 +233,13 @@
 		min-height: 40px;
 		background: rgba(255, 255, 255, 0.4);
 	}
-
 	.fact-text {
 		font-size: 0.85rem;
 		line-height: 1.6;
 		color: rgba(255, 255, 255, 0.5);
 		font-weight: 300;
-		transition: color 0.4s linear;
 		margin: 0;
 	}
-
-	.fact-text.in-focus {
-		color: #fff;
-		text-shadow: 0 2px 15px rgba(255, 255, 255, 0.2);
-	}
-
 	.stage-container {
 		position: absolute;
 		width: 100%;
@@ -251,7 +249,6 @@
 		justify-content: center;
 		contain: content;
 	}
-
 	.identity-grid-wrapper {
 		width: 100%;
 		display: flex;
@@ -259,7 +256,6 @@
 		will-change: filter, opacity;
 		backface-visibility: hidden;
 	}
-
 	.identity-grid {
 		display: flex;
 		flex-wrap: wrap;
@@ -267,7 +263,6 @@
 		gap: 12px;
 		max-width: 900px;
 	}
-
 	.get-started {
 		background: rgba(255, 255, 255, 0.05);
 		backdrop-filter: blur(10px);
@@ -281,13 +276,11 @@
 			background 0.3s,
 			transform 0.3s;
 	}
-
 	.get-started:hover {
 		background: #fff;
 		color: #000;
 		transform: scale(1.05);
 	}
-
 	.star-container {
 		opacity: 0.8;
 	}

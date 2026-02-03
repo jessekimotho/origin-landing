@@ -58,6 +58,8 @@
 		text-align: center;
 		max-width: 1200px;
 		margin: 0 auto;
+		margin-top: 40px;
+		gap: 0.8em;
 	}
 
 	.line {
@@ -76,8 +78,7 @@
 
 	/* Tier 2: Small (The Bridge) */
 	.line.small .word {
-		margin-top: 8px;
-		font-size: 1.75rem;
+		font-size: 1.8rem;
 	}
 
 	/* Tier 3: Large (The Statement) */
@@ -116,11 +117,10 @@
 
 	@media (max-width: 768px) {
 		.line.medium .word {
-			font-size: 1.4rem;
+			font-size: 1.7rem;
 		}
 		.line.small .word {
-			font-size: 0.75rem;
-			letter-spacing: 0.25em;
+			font-size: 1.3rem;
 		}
 		.line.large .word {
 			font-size: 2.2rem;
