@@ -184,6 +184,8 @@
 		color: white;
 		position: relative;
 		box-sizing: border-box;
+		max-height: 90vh;
+		overflow-y: auto;
 	}
 
 	.close-btn {

@@ -225,6 +225,42 @@
 		will-change: transform, opacity;
 		backface-visibility: hidden;
 	}
+
+	@media (max-width: 768px) {
+		.star-fact-container {
+			width: 200px;
+			max-width: 40vw;
+		}
+
+		.fact-text {
+			font-size: 0.75rem;
+		}
+
+		.prompt {
+			font-size: 0.65rem;
+			width: 90%;
+			text-align: center;
+			white-space: normal;
+			line-height: 1.4;
+		}
+
+		.logo-wrapper {
+			transform: translateY(-50%) scale(0.75);
+		}
+
+		.identity-grid {
+			padding: 0 16px;
+			width: 100%;
+			box-sizing: border-box;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.logo-wrapper {
+			transform: translateY(-50%) scale(0.55);
+		}
+	}
+
 	.star-fact-container::before {
 		content: '';
 		flex-shrink: 0;
