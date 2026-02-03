@@ -100,7 +100,7 @@
 	// --- PROMPT VANISH ---
 	$: promptFade = getProgress(y, 0, 400);
 	$: promptOpacity = 1 - promptFade;
-	$: promptBlur = promptFade * 20;
+	$: promptBlur = promptFade * 10; // Reduced max blur for performance
 	$: promptTranslate = promptFade * -20;
 
 	// --- SECTION 1 (IDENTITY) ---
@@ -174,7 +174,10 @@
 	<div
 		class="pointer-events-none fixed top-0 left-0 z-50 flex h-full w-full flex-col items-center justify-center"
 	>
-		<div class="logo-wrapper" style="top: {logoTopPosition}%;">
+		<div
+			class="logo-wrapper"
+			style="top: 0; transform: translate3d(0, {logoTopPosition}vh, 0) translateY(-50%);"
+		>
 			<Logo progress={logoMorphProgress} />
 		</div>
 		<div

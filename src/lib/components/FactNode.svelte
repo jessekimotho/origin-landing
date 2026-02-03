@@ -22,25 +22,33 @@
 	}
 
 	$: clarity = getClarity(overallProgress, slot.start, slot.end);
+	$: isVisible = clarity > 0.01;
 
 	// Proximity Logic
-	$: mx = ($mouseCoords.x + 0.5) * innerWidth;
-	$: my = ($mouseCoords.y + 0.5) * innerHeight;
-	$: sx = (slot.x / 100) * innerWidth;
-	$: sy = (slot.y / 100) * innerHeight;
-	$: dx = mx - sx;
-	$: dy = my - sy;
+	let activeProx = 0;
 
-	// Use 350 as the proximity radius
-	$: dist = Math.sqrt(dx * dx + dy * dy);
-	$: prox = Math.max(0, 1 - dist / 350);
+	$: if (isVisible) {
+		const mx = ($mouseCoords.x + 0.5) * innerWidth;
+		const my = ($mouseCoords.y + 0.5) * innerHeight;
+		const sx = (slot.x / 100) * innerWidth;
+		const sy = (slot.y / 100) * innerHeight;
+		const dx = mx - sx;
+		const dy = my - sy;
 
-	// Only apply proximity if the item is within its active timeline
-	$: activeProx = clarity > 0.01 ? prox : 0;
+		// Use 350 as the proximity radius
+		const dist = Math.sqrt(dx * dx + dy * dy);
+		const prox = Math.max(0, 1 - dist / 350);
+
+		// Only apply proximity if the item is within its active timeline
+		activeProx = prox;
+	} else {
+		activeProx = 0;
+	}
 </script>
 
 <div
 	class="star-fact-container"
+	style:display={isVisible ? 'flex' : 'none'}
 	style:left="{slot.x}%"
 	style:top="{slot.y}%"
 	style:opacity={clarity}

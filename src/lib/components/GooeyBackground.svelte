@@ -138,6 +138,7 @@
 		left: 0;
 		opacity: 0.7;
 		mix-blend-mode: hard-light;
+		will-change: transform;
 	}
 
 	@keyframes moveInCircle {
