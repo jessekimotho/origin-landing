@@ -361,12 +361,70 @@
 	@media (max-width: 600px) {
 		.modal-content {
 			padding: 32px 24px;
+			width: 100%;
+			margin: 0;
+			border-radius: 24px;
 		}
 		.input-row {
 			flex-direction: column;
+			gap: 16px;
 		}
 		.titling {
 			font-size: 1.8rem;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.role-dialog {
+			padding: 10px;
+		}
+
+		.modal-content {
+			padding: 24px 20px;
+			border-radius: 20px;
+		}
+
+		.close-btn {
+			top: 20px;
+			right: 20px;
+			width: 32px;
+			height: 32px;
+		}
+
+		.titling {
+			font-size: 1.5rem;
+			margin-bottom: 16px;
+			padding-right: 20px; /* Make space for close button */
+		}
+
+		.role-desc {
+			font-size: 0.9rem;
+			line-height: 1.5;
+			margin-bottom: 24px;
+		}
+
+		form {
+			gap: 16px;
+		}
+
+		.input-group {
+			gap: 6px;
+		}
+
+		label {
+			font-size: 0.6rem;
+		}
+
+		input,
+		textarea {
+			padding: 12px 14px;
+			font-size: 16px; /* Prevents iOS zoom */
+			border-radius: 10px;
+		}
+
+		.submit-btn {
+			padding: 14px;
+			font-size: 0.75rem;
 		}
 	}
 </style>
