@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount, tick } from 'svelte';
+
 	export let label: string = '';
 	export let type: 'identity' | 'uniform' = 'identity';
 
@@ -16,6 +18,22 @@
 
 	$: style = roleStyles[label] || roleStyles.default;
 	$: article = /^[aeiou]/i.test(label) ? 'an' : 'a';
+
+	let prefixEl: HTMLSpanElement;
+	let shiftAmount = 0;
+
+	// This calculates the EXACT half-width of the prefix to ensure
+	// the label starts at the mathematical center of the pill.
+	async function calculateShift() {
+		await tick();
+		if (prefixEl) {
+			// We shift by half the prefix width + half the gap
+			shiftAmount = (prefixEl.offsetWidth + 8) / 2;
+		}
+	}
+
+	onMount(calculateShift);
+	$: (label, calculateShift());
 </script>
 
 <div
@@ -24,6 +42,7 @@
         --active-border: {style.border}; 
         --active-bg: {style.bg}; 
         --active-text: {style.text};
+        --shift: {shiftAmount}px;
     "
 >
 	<div class="hover-glow"></div>
@@ -37,7 +56,7 @@
 				</div>
 
 				<div class="animator">
-					<span class="prefix">I am {article}</span>
+					<span class="prefix" bind:this={prefixEl}>I am {article}</span>
 					<span class="cell-label">{label}</span>
 				</div>
 			</div>
@@ -57,10 +76,7 @@
 		-webkit-backdrop-filter: blur(14px);
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 8px;
-		transition:
-			background 0.4s ease,
-			border-color 0.4s ease,
-			transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+		transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
 		cursor: pointer;
 		display: inline-flex;
 	}
@@ -85,7 +101,6 @@
 		opacity: 0.15;
 	}
 
-	/* --- THE ENGINE --- */
 	.identity-layout {
 		display: grid;
 		grid-template-areas: 'content';
@@ -101,8 +116,7 @@
 		pointer-events: none;
 		font-weight: 700;
 		letter-spacing: 0.04em;
-		font-size: 0.95rem;
-		/* Matches the visual gap between prefix and label */
+		/* Include the gap in the sizer width */
 		padding-right: 0.5rem;
 	}
 
@@ -111,36 +125,37 @@
 		display: flex;
 		align-items: center;
 		white-space: nowrap;
-		/* Use a custom cubic-bezier for a snappier, "Apple-like" feel */
-		transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-		/* Initially centered: we shift it left to hide the prefix */
-		transform: translateX(calc(-0.5 * var(--prefix-width, 36px)));
+		/* STARTS OFF-CENTERED LEFT: This makes the Label appear centered */
+		transform: translateX(calc(var(--shift) * -1));
+		transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
-	/* We calculate the shift based on a rough average to avoid JS, 
-       but the "sizer" ensures the box itself never clips. */
 	.cell:hover .animator {
+		/* ANIMATES TO ZERO: All text is now centered as a group */
 		transform: translateX(0);
 	}
 
 	.prefix {
 		font-weight: 300;
 		color: #ffffff;
-		font-size: 0.85rem;
 		opacity: 0;
 		margin-right: 0.5rem;
-		transition: opacity 0.3s ease;
+		transform: translateX(-10px);
+		transition:
+			opacity 0.3s ease,
+			transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 	}
 
 	.cell:hover .prefix {
 		opacity: 1;
+		transform: translateX(0);
 	}
 
 	.cell-label {
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		font-size: 0.95rem;
-		color: #94a3b8;
+		color: #ffffff7a;
 		transition: color 0.3s ease;
 	}
 
@@ -148,7 +163,6 @@
 		color: var(--active-text);
 	}
 
-	/* SIZING */
 	.identity-cell {
 		flex: 0 0 auto;
 	}

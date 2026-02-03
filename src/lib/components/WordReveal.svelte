@@ -69,12 +69,12 @@
 	}
 
 	.line.medium .word {
-		font-size: var(--fs-medium, clamp(1.5rem, 3vw, 2.5rem));
+		font-size: var(--fs-medium, clamp(1.5rem, 2vw, 2.5rem));
 		font-weight: 300;
 	}
 
 	.line.larger .word {
-		font-size: var(--fs-large, clamp(2rem, 5vw, 3.75rem));
+		font-size: var(--fs-large, clamp(2rem, 4vw, 3.75rem));
 		font-weight: 400;
 		font-family: 'Exposure', serif;
 		letter-spacing: -0.03em;

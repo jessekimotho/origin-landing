@@ -56,8 +56,5 @@ export const PERSONAS = [
 export const BREAKTHROUGHS = [
 	{ title: 'Precision Editing', desc: 'CRISPR 2.0 targeting root genetic causes.' },
 	{ title: 'Digital Twins', desc: 'AI models predicting patient outcomes.' },
-	{ title: 'Continuous Sensing', desc: 'Wearables detecting biomarkers in real-time.' },
-	{ title: 'mRNA Therapeutics', desc: 'Programmable medicine for immune response.' },
-	{ title: 'Microbiome Mapping', desc: 'Gut flora analysis for metabolic health.' },
-	{ title: 'Neural Interfaces', desc: 'Brain-computer bridges for restoration.' }
+	{ title: 'Continuous Sensing', desc: 'Wearables detecting biomarkers in real-time.' }
 ];

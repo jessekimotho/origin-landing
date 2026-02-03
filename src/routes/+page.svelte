@@ -157,7 +157,7 @@
 		--green-rgb: 34, 197, 94;
 
 		--fs-medium: clamp(1.2rem, 2.5vw, 2.2rem);
-		--fs-large: clamp(1.8rem, 4.5vw, 3.4rem);
+		--fs-large: clamp(1.8rem, 4vw, 3.4rem);
 		--text-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
 	}
 
@@ -204,7 +204,7 @@
 		gap: 8px;
 		width: 100%;
 		max-width: 900px;
-		margin-top: -48px;
+		margin-top: -40px;
 	}
 
 	.breakthrough-grid {
