@@ -54,24 +54,20 @@
 		scrollHeight = document.documentElement.scrollHeight;
 		window.addEventListener('mousemove', handleGlobalMouseMove);
 
-		// 1. Randomize Content
 		const burdenSelection = shuffle(pools.burden).slice(0, 2);
 		const breakthroughSelection = shuffle(pools.breakthroughs).slice(0, 2);
 		const finalSelection = shuffle(pools.final).slice(0, 1);
 
-		// 2. Randomize Universal Locations
 		const locationPool = shuffle([
-			{ x: 5, y: 15 }, // Top Left
-			{ x: 82, y: 18 }, // Top Right
-			{ x: 8, y: 75 }, // Bottom Left
-			{ x: 75, y: 80 }, // Bottom Right
-			{ x: 45, y: 12 } // Top Center
+			{ x: 5, y: 15 },
+			{ x: 82, y: 18 },
+			{ x: 8, y: 75 },
+			{ x: 75, y: 80 },
+			{ x: 45, y: 12 }
 		]);
 
-		// 3. Randomize Parallax Intensity
 		const depths = shuffle([0.7, 1.0, 1.2, 1.5, 1.8]);
 
-		// 4. Map Narrative Timing to Random Locations
 		activeSlots = [
 			{ ...locationPool[0], text: burdenSelection[0], start: 0.1, end: 0.35, depth: depths[0] },
 			{ ...locationPool[1], text: burdenSelection[1], start: 0.18, end: 0.4, depth: depths[1] },
@@ -107,15 +103,18 @@
 
 	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
-	// Narrative Sections
+	// Section 1
 	$: t1Progress = getProgress(y, 1500, 6000);
 	$: t1TextReveal = getProgress(t1Progress, 0, 0.3);
+	$: gridReveal = getProgress(t1Progress, 0.2, 0.6);
 	$: t1Exit = getProgress(t1Progress, 0.95, 1);
 
+	// Section 2
 	$: t2Progress = getProgress(y, 6500, 10500);
 	$: t2TextReveal = getProgress(t2Progress, 0, 0.4);
 	$: t2Exit = getProgress(t2Progress, 0.95, 1);
 
+	// Final Stage
 	$: finalProgress = getProgress(y, 11000, 13500);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
 
@@ -135,7 +134,6 @@
 			style:left="{slot.x}%"
 			style:top="{slot.y}%"
 			style:opacity={Math.max(0.01, clarity)}
-			style:filter="blur({(1 - clarity) * 10}px)"
 			style:transform="translate3d(calc({$mouseCoords.x} * {slot.depth} * -40px), calc({$mouseCoords.y}
 			* {slot.depth} * -20px), 0) translate(0, -50%) scale({0.92 + clarity * 0.08})"
 		>
@@ -145,7 +143,7 @@
 </div>
 
 <main>
-	<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
+	<div class="fixed inset-0 z-20 flex items-center justify-center">
 		{#if y < 1400}
 			<div style:opacity={1 - getProgress(y, 900, 1300)}>
 				<Logo progress={getProgress(y, 0, 1300)} />
@@ -156,14 +154,18 @@
 			<section class="stage-container" style:opacity={1 - t1Exit}>
 				<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
 
-				<div class="identity-grid-wrapper pointer-events-auto mt-8">
+				<div
+					class="identity-grid-wrapper pointer-events-auto mt-8"
+					style="
+						opacity: {gridReveal};
+						filter: blur({(1 - gridReveal) * 20}px);
+						/* No translate shift here - just static blur in position */
+						transform: translateZ(0);
+					"
+				>
 					<div class="identity-grid">
-						{#each PERSONAS as p, i}
-							<GridCell
-								type="identity"
-								label={p.label}
-								revealProgress={getProgress(t1Progress, 0.15 + i * 0.03, 0.55 + i * 0.03)}
-							/>
+						{#each PERSONAS as p}
+							<GridCell type="identity" label={p.label} />
 						{/each}
 					</div>
 				</div>
@@ -193,7 +195,7 @@
 
 <RoleModal
 	isOpen={isGeneralModalOpen}
-	label="Interested"
+	label="curious about Origin?"
 	on:close={() => (isGeneralModalOpen = false)}
 />
 
@@ -217,7 +219,6 @@
 		backface-visibility: hidden;
 	}
 
-	/* GPU-Friendly Border */
 	.star-fact-container::before {
 		content: '';
 		flex-shrink: 0;
@@ -252,11 +253,11 @@
 	}
 
 	.identity-grid-wrapper {
-		transform: translateZ(0); /* Force GPU */
-		will-change: opacity;
 		width: 100%;
 		display: flex;
 		justify-content: center;
+		will-change: filter, opacity;
+		backface-visibility: hidden;
 	}
 
 	.identity-grid {
@@ -265,7 +266,6 @@
 		justify-content: center;
 		gap: 12px;
 		max-width: 900px;
-		contain: layout; /* Prevent global reflows */
 	}
 
 	.get-started {
@@ -277,7 +277,9 @@
 		border-radius: 100px;
 		font-family: 'Exposure', serif;
 		cursor: pointer;
-		transition: 0.3s;
+		transition:
+			background 0.3s,
+			transform 0.3s;
 	}
 
 	.get-started:hover {

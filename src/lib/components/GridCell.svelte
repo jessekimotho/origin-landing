@@ -4,7 +4,6 @@
 
 	export let label: string = '';
 	export let type: 'identity' | 'uniform' = 'identity';
-	export let revealProgress: number = 1; // Default to visible if not passed
 
 	const roleStyles: Record<string, { border: string; bg: string; text: string }> = {
 		Donor: { border: '#38bdf8', bg: '#14445aa3', text: '#b7e9ff' },
@@ -28,9 +27,7 @@
 
 	async function calculateShift() {
 		await tick();
-		if (prefixEl) {
-			shiftAmount = (prefixEl.offsetWidth + 8) / 2;
-		}
+		if (prefixEl) shiftAmount = (prefixEl.offsetWidth + 8) / 2;
 	}
 
 	onMount(calculateShift);
@@ -45,11 +42,6 @@
         --active-bg: {style.bg}; 
         --active-text: {style.text};
         --shift: {shiftAmount}px;
-
-        /* GAUSSIAN BLUR FADE ENGINE */
-        opacity: {revealProgress};
-        filter: blur({(1 - revealProgress) * 20}px);
-        transform: translateY({(1 - revealProgress) * 30}px);
     "
 >
 	<div class="hover-glow"></div>
@@ -62,8 +54,6 @@
 					<span class="cell-label">{label}</span>
 				</div>
 			</div>
-		{:else}
-			<slot />
 		{/if}
 	</div>
 </div>
@@ -74,10 +64,8 @@
 	.cell {
 		position: relative;
 		overflow: hidden;
-		isolation: isolate;
 		background: rgba(255, 255, 255, 0.05);
-		backdrop-filter: blur(40px);
-		-webkit-backdrop-filter: blur(40px);
+		backdrop-filter: blur(20px);
 		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 6px;
 		transition:
@@ -85,7 +73,6 @@
 			border-color 0.4s ease;
 		cursor: pointer;
 		display: inline-flex;
-		will-change: transform, opacity, filter;
 	}
 
 	.cell:hover {
@@ -162,14 +149,5 @@
 
 	.cell:hover .cell-label {
 		color: var(--active-text);
-	}
-	.identity-cell {
-		flex: 0 0 auto;
-	}
-	.uniform-cell {
-		min-height: 120px;
-		padding: 24px;
-		text-align: center;
-		width: 100%;
 	}
 </style>

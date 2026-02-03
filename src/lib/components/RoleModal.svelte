@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { createEventDispatcher, tick } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
-	import { cubicOut } from 'svelte/easing';
+	import { cubicOut, quintOut } from 'svelte/easing';
 
 	export let isOpen = false;
 	export let label = '';
@@ -11,28 +11,63 @@
 	const dispatch = createEventDispatcher();
 	let dialog: HTMLDialogElement;
 
-	// Use a reactive statement that handles the opening instantly
-	// but waits for transitions on closing.
+	const roleCopy: Record<string, { desc: string; placeholder: string }> = {
+		Patient: {
+			desc: 'Your biological data is the foundational evidence for the next era of medicine. Together, we can architect your metabolic resilience and turn personal insights into global breakthroughs.',
+			placeholder: "Tell us about your health goals or the specific challenges you're facing..."
+		},
+		Clinician: {
+			desc: 'Bridge the gap between clinical theory and real-time metabolic reality. Join our network to deploy high-fidelity monitoring and precision interventions directly to the bedside.',
+			placeholder:
+				'Tell us about your specialization or how you want to integrate precision data...'
+		},
+		Investor: {
+			desc: "The transition from reactive care to proactive sensing is the most significant shift in the history of human health. Let's discuss scaling the infrastructure for the longevity economy.",
+			placeholder: "Tell us about your fund's focus or investment criteria..."
+		},
+		Researcher: {
+			desc: 'Access the high-fidelity, continuous biomarker streams required to validate next-generation therapeutics. Help us refine the digital twin models that will define future outcomes.',
+			placeholder: 'Tell us about your current research area or data requirements...'
+		},
+		Partner: {
+			desc: "Actualfood is an open-architecture platform. Let's explore how our metabolic sensing layers can integrate with your ecosystem to create a unified front against chronic decay.",
+			placeholder: 'Tell us about your platform and your vision for integration...'
+		},
+		default: {
+			desc: 'The resolution of chronic disease requires a collective shift in how we sense, analyze, and act upon biological data. Join us in architecting a more resilient future.',
+			placeholder: 'How can you help? Tell us about your unique background...'
+		}
+	};
+
+	$: activeCopy = roleCopy[label] || roleCopy['default'];
+
 	$: if (dialog) {
 		if (isOpen) {
 			dialog.showModal();
 			document.body.style.overflow = 'hidden';
 		} else if (dialog.open) {
-			// We don't call dialog.close() here.
-			// We let the {#if isOpen} block handle the out-transition.
 			document.body.style.overflow = 'unset';
 		}
 	}
 
-	async function handleClose() {
+	function handleClose() {
 		dispatch('close');
 	}
 
-	// This ensures the native dialog actually closes once the Svelte transition finishes
 	function onOutroEnd() {
 		if (!isOpen && dialog) {
 			dialog.close();
 		}
+	}
+
+	function blurTransition(node: HTMLElement, { duration = 500 }) {
+		return {
+			duration,
+			tick: (t: number) => {
+				node.style.setProperty('--backdrop-blur', `${t * 20}px`);
+				node.style.setProperty('--vignette-opacity', `${t * 0.9}`);
+			}
+		};
 	}
 </script>
 
@@ -43,47 +78,59 @@
 		on:outroend={onOutroEnd}
 		class="role-dialog"
 		style="--role-color: {style.border}; --role-text: {style.text}"
-		transition:fade={{ duration: 300 }}
+		transition:blurTransition={{ duration: 500 }}
 	>
 		<div
 			class="modal-content"
-			in:scale={{ duration: 400, start: 0.92, easing: cubicOut }}
-			out:scale={{ duration: 250, start: 0.96, easing: cubicOut }}
+			in:scale={{ duration: 600, start: 0.9, easing: quintOut }}
+			out:scale={{ duration: 300, start: 0.95, easing: cubicOut }}
 		>
-			<button class="close-btn" on:click={handleClose} aria-label="Close modal">&times;</button>
+			<button class="close-btn" on:click={handleClose} aria-label="Close modal">
+				<svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+					<path
+						d="M1 1L13 13M1 13L13 1"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+					/>
+				</svg>
+			</button>
 
 			<header>
 				<h2 class="titling">
-					I am {article ? article + ' ' : ''}<span class="highlight titling">{label}</span>
+					I am {article ? article + ' ' : ''}<span class="highlight">{label}</span>
 				</h2>
-				<p>
-					Join Actualfood's mission to accelerate breakthroughs against chronic disease. Tell us how
-					you'd like to contribute.
+				<p class="role-desc">
+					{activeCopy.desc}
 				</p>
 			</header>
 
 			<form on:submit|preventDefault={handleClose}>
-				<div class="input-group">
-					<label for="name">Name</label>
-					<input type="text" id="name" required placeholder="Your name" />
+				<div class="input-row">
+					<div class="input-group">
+						<label for="name">Name</label>
+						<input type="text" id="name" required placeholder="Enter your name" />
+					</div>
+
+					<div class="input-group">
+						<label for="email">Email</label>
+						<input type="email" id="email" required placeholder="email@address.com" />
+					</div>
 				</div>
 
 				<div class="input-group">
-					<label for="email">Email</label>
-					<input type="email" id="email" required placeholder="email@address.com" />
-				</div>
-
-				<div class="input-group">
-					<label for="message">Message</label>
-					<textarea id="message" placeholder="How can you help?"></textarea>
+					<label for="message">Contribution</label>
+					<textarea id="message" rows="4" placeholder={activeCopy.placeholder}></textarea>
 				</div>
 
 				<button
 					type="submit"
 					class="submit-btn"
-					style="background: {style.text}1c; color: {style.text}c2; border: 1px solid {style.text}33"
+					style:background="{style.text}33"
+					style:color={style.text}
+					style:border="1px solid {style.text}88"
 				>
-					Send Message
+					Transmit Message
 				</button>
 			</form>
 		</div>
@@ -91,7 +138,6 @@
 {/if}
 
 <style>
-	/* Ensure the dialog is visible and centered when open */
 	.role-dialog {
 		background: transparent;
 		border: none;
@@ -99,164 +145,225 @@
 		margin: 0;
 		outline: none;
 		position: fixed;
-		top: 0;
-		left: 0;
+		inset: 0;
 		width: 100vw;
 		height: 100vh;
-		max-width: none;
-		max-height: none;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
+		z-index: 9999;
 	}
 
-	.role-dialog::backdrop {
-		background: rgba(0, 0, 0, 0.75);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+	.role-dialog::before {
+		content: '';
+		position: fixed;
+		inset: 0;
+		background: radial-gradient(
+			circle,
+			transparent 0%,
+			rgba(0, 0, 0, var(--vignette-opacity, 0)) 100%
+		);
+		backdrop-filter: blur(var(--backdrop-blur, 0px));
+		-webkit-backdrop-filter: blur(var(--backdrop-blur, 0px));
+		pointer-events: none;
+		z-index: -1;
 	}
 
-	/* Fixed the content container to prevent jank */
 	.modal-content {
-		background: rgba(10, 10, 15, 0.85);
-		backdrop-filter: blur(32px);
-		-webkit-backdrop-filter: blur(32px);
+		background: rgba(12, 12, 14, 0.45);
+		backdrop-filter: blur(40px);
+		-webkit-backdrop-filter: blur(40px);
 		border: 1px solid rgba(255, 255, 255, 0.1);
-		width: calc(100vw - 40px);
-		max-width: 500px;
-		border-radius: 28px;
-		padding: 40px;
-		box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+		width: 100%;
+		max-width: 540px;
+		margin: 0 16px;
+		border-radius: 32px;
+		padding: 48px;
+		box-shadow: 0 40px 120px -20px rgba(0, 0, 0, 0.8);
 		color: white;
 		position: relative;
-		/* Force hardware acceleration for the scale animation */
-		will-change: transform, opacity;
+		box-sizing: border-box;
 	}
 
 	.close-btn {
 		position: absolute;
-		top: 24px;
-		right: 24px;
+		top: 32px;
+		right: 32px;
 		background: rgba(255, 255, 255, 0.05);
-		border: none;
+		border: 1px solid rgba(255, 255, 255, 0.1);
 		color: white;
-		width: 32px;
-		height: 32px;
+		width: 40px;
+		height: 40px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		opacity: 0.6;
-		transition: all 0.2s;
+		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+		z-index: 10;
 	}
 
 	.close-btn:hover {
-		opacity: 1;
-		background: rgba(255, 255, 255, 0.1);
+		background: rgba(255, 255, 255, 0.15);
+		transform: rotate(90deg);
 	}
 
 	.titling {
 		font-family: 'Exposure', serif;
-		font-size: 1.8rem;
-		margin-bottom: 12px;
+		font-size: 2.2rem;
+		line-height: 1.1;
+		margin-bottom: 20px;
 		font-weight: 300;
-		letter-spacing: -0.02em;
+		letter-spacing: -0.03em;
 	}
 
 	.highlight {
 		color: var(--role-text);
 		font-weight: 600;
+		filter: saturate(1.8) drop-shadow(0 0 15px var(--role-text));
 	}
 
-	header p {
+	.role-desc {
 		color: rgba(255, 255, 255, 0.5);
-		font-size: 0.95rem;
+		font-size: 1.05rem;
 		line-height: 1.6;
-		margin-bottom: 30px;
+		margin-bottom: 40px;
+		max-width: 90%;
 	}
 
-	.input-group input,
-	.input-group textarea {
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		transition: all 0.2s;
-	}
-
-	.input-group input:focus,
-	.input-group textarea:focus {
-		background: rgba(255, 255, 255, 0.08);
-		border-color: var(--role-color);
-		box-shadow: 0 0 0 4px rgba(var(--role-color-rgb), 0.1);
-	}
-
-	.submit-btn {
-		transition:
-			transform 0.2s,
-			filter 0.2s,
-			box-shadow 0.2s;
-	}
-
-	.submit-btn:active {
-		transform: scale(0.98);
-	}
 	form {
 		display: flex;
 		flex-direction: column;
-		gap: 20px;
+		gap: 24px;
+		width: 100%;
 	}
+
+	.input-row {
+		display: flex;
+		gap: 20px;
+		width: 100%;
+	}
+
 	.input-group {
 		display: flex;
 		flex-direction: column;
-		gap: 8px;
+		gap: 10px;
+		flex: 1;
+		min-width: 0; /* Critical for preventing overflow */
 	}
+
 	label {
-		font-size: 0.75rem;
+		font-size: 0.65rem;
 		color: rgba(255, 255, 255, 0.4);
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
+		letter-spacing: 0.2em;
+		font-weight: 600;
 	}
 
 	input,
 	textarea {
 		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 		border-radius: 12px;
-		padding: 12px 16px;
+		padding: 14px 18px;
 		color: white;
-		font-family: 'Helvetica Neue', Helvetica, sans-serif;
+		font-family: inherit;
+		font-size: 0.95rem;
+		transition: all 0.3s ease;
+		width: 100%;
+		box-sizing: border-box;
 	}
 
 	input:focus,
 	textarea:focus {
 		outline: none;
-		border-color: var(--role-color);
 		background: rgba(255, 255, 255, 0.06);
+		border-color: var(--role-color);
+		box-shadow: 0 0 20px -10px var(--role-color);
 	}
 
 	.submit-btn {
 		width: 100%;
 		font-weight: 700;
-		padding: 16px;
-		border-radius: 12px;
+		padding: 18px;
+		border-radius: 14px;
 		cursor: pointer;
-		transition: all 0.3s ease;
-		backdrop-filter: blur(10px);
-		font-family: 'Helvetica Neue', Helvetica, sans-serif;
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
+		letter-spacing: 0.15em;
+		font-size: 0.8rem;
+
+		/* Glassmorphic Base */
+		background: linear-gradient(
+			135deg,
+			rgba(255, 255, 255, 0.05) 0%,
+			rgba(255, 255, 255, 0.01) 100%
+		);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		color: rgba(255, 255, 255, 0.9);
+
+		position: relative;
+		overflow: hidden;
+		transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+		will-change: transform, box-shadow;
 	}
 
 	.submit-btn:hover {
-		transform: translateY(-2px);
-		filter: brightness(1.3);
-		box-shadow: 0 0 20px -5px var(--role-text);
+		/* Subtle Lift */
+		transform: translateY(-3px);
+
+		/* Role-Tuned Vibrant Border */
+		border-color: var(--role-text);
+		color: #ffffff;
+
+		/* Glass Refraction Effect */
+		background: linear-gradient(
+			135deg,
+			rgba(255, 255, 255, 0.1) 0%,
+			/* Saturated role-based tint in the background */ calc(var(--role-text)) 10%
+		);
+
+		/* Dual-Layer Glow: 
+           1. Sharp Inner Highlight
+           2. Broad Atmospheric Color Spillage 
+        */
+		box-shadow:
+			inset 0 0 12px 0 rgba(255, 255, 255, 0.1),
+			0 0 0 1px var(--role-text),
+			0 20px 40px -12px rgba(0, 0, 0, 0.5),
+			0 10px 30px -5px var(--role-text);
+
+		filter: saturate(1.8) brightness(1.1);
 	}
 
-	@media (max-width: 480px) {
+	/* Add a subtle "shimmer" streak on hover */
+	.submit-btn::after {
+		content: '';
+		position: absolute;
+		top: -50%;
+		left: -50%;
+		width: 200%;
+		height: 200%;
+		background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+		transform: rotate(45deg) translateY(100%);
+		transition: transform 0.8s ease;
+	}
+
+	.submit-btn:hover::after {
+		transform: rotate(45deg) translateY(-100%);
+	}
+
+	@media (max-width: 600px) {
 		.modal-content {
-			padding: 30px 20px;
+			padding: 32px 24px;
+		}
+		.input-row {
+			flex-direction: column;
+		}
+		.titling {
+			font-size: 1.8rem;
 		}
 	}
 </style>
