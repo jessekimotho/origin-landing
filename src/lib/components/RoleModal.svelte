@@ -362,7 +362,7 @@
 		.modal-content {
 			padding: 32px 24px;
 			width: 100%;
-			margin: 0;
+			margin: auto;
 			border-radius: 24px;
 		}
 		.input-row {
