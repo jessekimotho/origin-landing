@@ -132,7 +132,7 @@
 			font-size: 1.5rem;
 		}
 		.line {
-			line-height: 1.2;
+			line-height: 1.5 !important;
 		}
 	}
 </style>
