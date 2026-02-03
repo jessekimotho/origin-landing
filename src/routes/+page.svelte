@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { handleGlobalMouseMove, mouseCoords } from '$lib/stores';
+	import { handleGlobalMouseMove } from '$lib/stores';
 	import {
 		NARRATIVE_CONTENT,
 		PERSONAS,
@@ -23,7 +23,16 @@
 	let innerWidth = 0;
 	let scrollHeight = 0;
 
-	let activeSlots: any[] = [];
+	interface ActiveSlot {
+		x: number;
+		y: number;
+		text: string;
+		start: number;
+		end: number;
+		depth: number;
+	}
+
+	let activeSlots: ActiveSlot[] = [];
 
 	const jsonLd = {
 		'@context': 'https://schema.org',
@@ -34,6 +43,7 @@
 		description: SEO_CONFIG.description,
 		sameAs: [`https://twitter.com/${SEO_CONFIG.twitterHandle.replace('@', '')}`]
 	};
+	const schemaHtml = `<script type="application/ld+json">${JSON.stringify(jsonLd)}</` + `script>`;
 
 	function shuffle<T>(array: T[]): T[] {
 		return [...array].sort(() => Math.random() - 0.5);
@@ -146,7 +156,7 @@
 		article: ''
 	};
 
-	function openModal(detail: any) {
+	function openModal(detail: typeof modalProps) {
 		modalProps = detail;
 		isModalOpen = true;
 	}
@@ -180,7 +190,8 @@
 	<meta name="twitter:image" content={SEO_CONFIG.ogImage} />
 
 	<!-- JSON-LD -->
-	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	{@html schemaHtml}
 </svelte:head>
 
 <svelte:window bind:scrollY={y} bind:innerHeight bind:innerWidth on:resize={updateHeight} />
@@ -189,7 +200,7 @@
 <AuroraProgress progress={overallProgress} />
 
 <div class="star-container pointer-events-none fixed inset-0 z-0" style="contain: strict;">
-	{#each activeSlots as slot}
+	{#each activeSlots as slot (slot.text)}
 		<FactNode {slot} {overallProgress} {innerWidth} {innerHeight} />
 	{/each}
 </div>
@@ -229,7 +240,7 @@
 					style="opacity: {gridReveal}; filter: blur({(1 - gridReveal) * 20}px);"
 				>
 					<div class="identity-grid">
-						{#each PERSONAS as p}
+						{#each PERSONAS as p (p.label)}
 							<GridCell type="identity" label={p.label} on:open={(e) => openModal(e.detail)} />
 						{/each}
 					</div>

@@ -31,9 +31,9 @@
 </script>
 
 <div class="revision-container">
-	{#each processedLines as line}
+	{#each processedLines as line, i (i)}
 		<div class="line {line.size}">
-			{#each line.words as word}
+			{#each line.words as word (word.index)}
 				<span
 					class="word"
 					class:active={word.index <= visibleIndex}
@@ -130,8 +130,6 @@
 		}
 		.line.large {
 			font-size: 1.5rem;
-		}
-		.line {
 		}
 	}
 </style>

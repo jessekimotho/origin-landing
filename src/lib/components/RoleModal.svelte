@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import { cubicOut, quintOut } from 'svelte/easing';
 	import { ROLE_COPY } from '$lib/constants';
 

@@ -35,7 +35,11 @@
 		return () => window.removeEventListener('resize', calculateShift);
 	});
 
-	$: (label, calculateShift());
+	$: {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		label;
+		calculateShift();
+	}
 
 	function handleClick() {
 		if (type === 'identity') {
@@ -44,7 +48,8 @@
 	}
 </script>
 
-<div
+<button
+	type="button"
 	class="cell {type}-cell"
 	on:click={handleClick}
 	style="
@@ -69,10 +74,13 @@
 			</div>
 		{/if}
 	</div>
-</div>
+</button>
 
 <style>
 	.cell {
+		padding: 0;
+		text-align: left;
+		font: inherit;
 		position: relative;
 		overflow: hidden;
 		background: rgba(255, 255, 255, 0.05);

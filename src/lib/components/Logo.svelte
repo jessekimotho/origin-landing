@@ -26,7 +26,8 @@
 
 	// --- Idle Engine ---
 	let lastInteractionTime = Date.now();
-	let idleTimer: any;
+	let idleTimer: ReturnType<typeof setTimeout>;
+
 	let currentIdleThreshold = 8000 + Math.random() * 4000;
 
 	const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -267,7 +268,15 @@
 
 <div
 	class="logo-group"
+	role="button"
+	tabindex="0"
 	on:click={handleInteraction}
+	on:keydown={(e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			handleInteraction();
+		}
+	}}
 	style="
 		--morph-t: {morphT};
 		--gap: {logoGap}px;
