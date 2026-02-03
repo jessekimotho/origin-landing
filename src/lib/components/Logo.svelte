@@ -258,6 +258,11 @@
 	// Default Logic (Desktop)
 	// Default Logic (Desktop)
 	// We handle the scale base in CSS now, but we need to pass the animation modifiers
+
+	function scrollToTop(e: MouseEvent) {
+		e.stopPropagation();
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+	}
 </script>
 
 <div
@@ -306,7 +311,16 @@
 				></div>
 			</div>
 		</div>
-		<div class="rest-of-word" style="letter-spacing: var(--spacing); ">ORIGIN</div>
+		<div
+			class="rest-of-word"
+			style="letter-spacing: var(--spacing);"
+			on:click={scrollToTop}
+			on:keypress={() => {}}
+			role="button"
+			tabindex="0"
+		>
+			ORIGIN
+		</div>
 	</div>
 </div>
 
@@ -378,7 +392,8 @@
 		font-family: 'BankGothic', sans-serif !important;
 		color: #fff;
 		font-weight: 300;
-		pointer-events: none;
+		pointer-events: auto;
+		cursor: pointer;
 		user-select: none;
 		font-size: var(--base-font);
 	}
@@ -397,11 +412,12 @@
 	/* SMALL MOBILE */
 	@media (max-width: 480px) {
 		.logo-group {
-			/* Start: 0.70 -> End: 0.55 */
-			--base-scale: calc(0.7 - var(--morph-t) * 0.15);
-			/* Start: 28px -> End: 22px */
-			--base-font: calc(28px - var(--morph-t) * 6px);
-			--base-gap: calc(32px - var(--morph-t) * 24px);
+			/* Start: 0.55 -> End: 0.45 */
+			--base-scale: calc(0.55 - var(--morph-t) * 0.1);
+			/* Start: 22px -> End: 18px */
+			--base-font: calc(22px - var(--morph-t) * 4px);
+			/* Start: 20px -> End: 8px */
+			--base-gap: calc(20px - var(--morph-t) * 12px);
 		}
 	}
 </style>

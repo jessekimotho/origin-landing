@@ -92,8 +92,8 @@
 
 	@media (max-width: 768px) {
 		.star-fact-container {
-			width: 200px;
-			max-width: 40vw;
+			width: 240px;
+			max-width: 75vw;
 		}
 		.fact-text {
 			font-size: 0.75rem;

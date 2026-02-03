@@ -37,31 +37,39 @@
 
 		// Bias shuffle to separate close neighbors
 		let locationPool: { x: number; y: number }[] = [];
-		let validShuffle = false;
-		while (!validShuffle) {
-			locationPool = shuffle([
-				{ x: 5, y: 15 },
-				{ x: 75, y: 18 },
-				{ x: 8, y: 85 },
-				{ x: 75, y: 83 },
-				{ x: 77, y: 80 }
-			]);
-			const p1 = locationPool.findIndex((l) => l.x === 75);
-			const p2 = locationPool.findIndex((l) => l.x === 80);
-			if (Math.abs(p1 - p2) > 1) validShuffle = true;
+
+		if (window.innerWidth <= 768) {
+			// Mobile: Alternate top/bottom on left side
+			const top = { x: 23, y: 20 };
+			const btm = { x: 23, y: 80 };
+			locationPool = [top, btm, top, btm, top];
+		} else {
+			let validShuffle = false;
+			while (!validShuffle) {
+				locationPool = shuffle([
+					{ x: 5, y: 15 },
+					{ x: 75, y: 18 },
+					{ x: 8, y: 85 },
+					{ x: 75, y: 83 },
+					{ x: 77, y: 80 }
+				]);
+				const p1 = locationPool.findIndex((l) => l.x === 75);
+				const p2 = locationPool.findIndex((l) => l.x === 80);
+				if (Math.abs(p1 - p2) > 1) validShuffle = true;
+			}
 		}
 
 		const depths = shuffle([0.7, 1.0, 1.2, 1.5, 1.8]);
 
 		// Reduced overlap timings
 		activeSlots = [
-			{ ...locationPool[0], text: burdenSelection[0], start: 0.1, end: 0.35, depth: depths[0] },
-			{ ...locationPool[1], text: burdenSelection[1], start: 0.18, end: 0.4, depth: depths[1] },
+			{ ...locationPool[0], text: burdenSelection[0], start: 0.0, end: 0.2, depth: depths[0] },
+			{ ...locationPool[1], text: burdenSelection[1], start: 0.4, end: 0.6, depth: depths[1] },
 			{
 				...locationPool[2],
 				text: breakthroughSelection[0],
 				start: 0.5,
-				end: 0.8,
+				end: 0.7,
 				depth: depths[2]
 			},
 			{
@@ -119,6 +127,15 @@
 	// --- FINAL SECTION ---
 	$: finalProgress = getProgress(y, 13500, 16000);
 	$: buttonOpacity = getProgress(finalProgress, 0.7, 1);
+
+	$: finalLines =
+		innerWidth <= 768
+			? [
+					{ size: 'medium', text: 'The fight against' },
+					{ size: 'medium', text: 'Chronic Disease' },
+					{ size: 'large', text: 'starts with you.' }
+				]
+			: NARRATIVE_CONTENT.final;
 
 	let isModalOpen = false;
 	let modalProps = {
@@ -205,7 +222,7 @@
 
 		{#if finalProgress > 0}
 			<section class="stage-container">
-				<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
+				<WordReveal lines={finalLines} progress={finalProgress} />
 				<div class="cta-wrapper pointer-events-auto" style:opacity={buttonOpacity}>
 					<button class="get-started" on:click={openGeneralModal}> Get Started </button>
 				</div>
