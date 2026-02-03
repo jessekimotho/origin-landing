@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import RoleModal from './RoleModal.svelte'; // Import the new modal
 
 	export let label: string = '';
 	export let type: 'identity' | 'uniform' = 'identity';
@@ -7,7 +8,9 @@
 	const roleStyles: Record<string, { border: string; bg: string; text: string }> = {
 		Donor: { border: '#38bdf8', bg: '#14445aa3', text: '#b7e9ff' },
 		Investor: { border: '#4ade80', bg: '#163a24a3', text: '#c2ffd9' },
-		Policymaker: { border: '#94a3b8', bg: '#1e293ba3', text: '#e2e8f0' },
+		// Strengthened Colors
+		Policymaker: { border: '#60a5fa', bg: '#1e3a8aa3', text: '#bfdbfe' },
+		'Public Figure': { border: '#ffffff', bg: '#3f3f46a3', text: '#fafafa' },
 		'Content Creator': { border: '#facc15', bg: '#3e3612a3', text: '#fff1b7' },
 		'Health Player': { border: '#a78bfa', bg: '#2e1f4aa3', text: '#e9dfff' },
 		Patient: { border: '#22d3ee', bg: '#103e46a3', text: '#b7f4ff' },
@@ -21,13 +24,11 @@
 
 	let prefixEl: HTMLSpanElement;
 	let shiftAmount = 0;
+	let isModalOpen = false; // Modal State
 
-	// This calculates the EXACT half-width of the prefix to ensure
-	// the label starts at the mathematical center of the pill.
 	async function calculateShift() {
 		await tick();
 		if (prefixEl) {
-			// We shift by half the prefix width + half the gap
 			shiftAmount = (prefixEl.offsetWidth + 8) / 2;
 		}
 	}
@@ -38,6 +39,7 @@
 
 <div
 	class="cell {type}-cell"
+	on:click={() => type === 'identity' && (isModalOpen = true)}
 	style="
         --active-border: {style.border}; 
         --active-bg: {style.bg}; 
@@ -46,15 +48,10 @@
     "
 >
 	<div class="hover-glow"></div>
-
 	<div class="cell-content-wrapper">
 		{#if type === 'identity'}
 			<div class="identity-layout">
-				<div class="sizer" aria-hidden="true">
-					I am {article}
-					{label}
-				</div>
-
+				<div class="sizer" aria-hidden="true">I am {article} {label}</div>
 				<div class="animator">
 					<span class="prefix" bind:this={prefixEl}>I am {article}</span>
 					<span class="cell-label">{label}</span>
@@ -66,16 +63,18 @@
 	</div>
 </div>
 
+<RoleModal isOpen={isModalOpen} {label} {style} {article} on:close={() => (isModalOpen = false)} />
+
 <style>
 	.cell {
 		position: relative;
 		overflow: hidden;
 		isolation: isolate;
-		background: rgba(9, 9, 11, 0.4);
-		backdrop-filter: blur(14px);
-		-webkit-backdrop-filter: blur(14px);
+		background: rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(40px);
+		-webkit-backdrop-filter: blur(40px);
 		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 8px;
+		border-radius: 6px;
 		transition: all 0.4s cubic-bezier(0.2, 0, 0.2, 1);
 		cursor: pointer;
 		display: inline-flex;
@@ -139,7 +138,7 @@
 		font-weight: 300;
 		color: #ffffff;
 		opacity: 0;
-		margin-right: 0.5rem;
+		margin-right: 0.4rem;
 		transform: translateX(-10px);
 		transition:
 			opacity 0.3s ease,
@@ -152,10 +151,8 @@
 	}
 
 	.cell-label {
-		font-weight: 700;
 		letter-spacing: 0.04em;
-		font-size: 0.95rem;
-		color: #ffffff7a;
+		color: #ffffffb5;
 		transition: color 0.3s ease;
 	}
 

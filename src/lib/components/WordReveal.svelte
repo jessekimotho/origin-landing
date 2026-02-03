@@ -66,11 +66,13 @@
 		text-align: center;
 		line-height: 1.1;
 		font-weight: 600;
+		font-family: 'Exposure', serif;
 	}
 
 	.line.medium .word {
 		font-size: var(--fs-medium, clamp(1.5rem, 2vw, 2.5rem));
 		font-weight: 300;
+		font-family: 'Exposure', serif;
 	}
 
 	.line.larger .word {

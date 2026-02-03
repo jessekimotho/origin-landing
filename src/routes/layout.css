@@ -1,32 +1,54 @@
 @import 'tailwindcss';
 
 /**************************/
-/*EXPOSURE FONT*/
-/*300 - FONT*/
+/* FONT DEFINITIONS */
 @font-face {
 	font-family: 'Exposure';
 	src: url('fonts/ExposureTrialVAR.ttf') format('truetype');
+	font-weight: 100 900; /* Assuming it's a variable font */
+	font-display: swap;
 }
 
 @font-face {
 	font-family: 'BankGothic';
 	src: url('fonts/BankGothicBold.ttf') format('truetype');
+	font-display: swap;
 }
 
 /**************************/
-/*GLOBAL STYLES*/
-* {
-	box-sizing: border-box;
-	font-family:
-		'Exposure',
-		-apple-system,
-		BlinkMacSystemFont,
-		Roboto,
-		helvetica neue,
-		sans-serif !important;
+/* GLOBAL STYLES */
+
+/* 1. Base Font (Helvetica for everything) */
+:global(html),
+:global(body) {
+	background-color: var(--bg);
 	color: #ffffff;
-	outline: none !important;
+	/* Clean Helvetica Stack */
+	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	font-size: 18px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
 	scrollbar-width: thin;
 	scrollbar-color: grey transparent;
+}
+
+/* 2. Reset specific tags to inherit body font */
+* {
+	box-sizing: border-box;
+	outline: none !important;
+}
+
+/* 3. Exposure for Headers and Titles */
+:global(h1),
+:global(h2),
+:global(h3),
+:global(h4),
+:global(h5),
+:global(h6),
+.exposure-title,
+:global(.breakthrough-title) {
+	font-family: 'Exposure', sans-serif !important;
+	font-weight: 700;
+	letter-spacing: -0.02em; /* Exposure often looks better tighter */
+	line-height: 1.1;
 }
