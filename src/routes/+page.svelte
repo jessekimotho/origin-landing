@@ -2,23 +2,56 @@
 	import { onMount } from 'svelte';
 	import { handleGlobalMouseMove } from '$lib/stores';
 
-	// Components
-	import GooeyBackground from '$lib/components/GooeyBackground.svelte';
-	import FactCloud from '$lib/components/FactCloud.svelte';
-	import ScrollSection from '$lib/components/ScrollSection.svelte';
-	import WordReveal from '$lib/components/WordReveal.svelte';
-	import GridCell from '$lib/components/GridCell.svelte';
-	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-	import Logo from '$lib/components/Logo.svelte';
-
 	// Data
 	import { CLINICAL_FACTS, NARRATIVE_CONTENT, PERSONAS, BREAKTHROUGHS } from '$lib/constants';
 
-	let activeProgress = 0;
+	// Components
+	import GooeyBackground from '$lib/components/GooeyBackground.svelte';
+	import FactCloud from '$lib/components/FactCloud.svelte';
+	import WordReveal from '$lib/components/WordReveal.svelte';
+	import GridCell from '$lib/components/GridCell.svelte';
+	import Logo from '$lib/components/Logo.svelte';
+	import ThemeToggle from '$lib/components/ThemeToggle.svelte';
 
-	function handleMainNarrative(e: CustomEvent) {
-		activeProgress = e.detail.progress;
-	}
+	// 1. GLOBAL SCROLL STATE
+	let y = 0;
+	let innerHeight = 0;
+
+	// 2. TIMELINE UTILITIES
+	// Maps a scroll range [start, end] to a [0, 1] progress value
+	const getProgress = (scroll: number, start: number, end: number) => {
+		return Math.min(Math.max((scroll - start) / (end - start), 0), 1);
+	};
+
+	// --- MILESTONES (Pixel values) ---
+
+	// Section 0: Logo Intro
+	$: introProgress = getProgress(y, 0, 800);
+	$: introOpacity = 1 - getProgress(y, 600, 900);
+
+	// Section 1: Narrative 1 + Identity Grid
+	$: t1ScrollStart = 900;
+	$: t1ScrollEnd = 3500;
+	$: t1Progress = getProgress(y, t1ScrollStart, t1ScrollEnd);
+
+	// Inside T1: Break down the "Reveal" vs "Grid Appearance"
+	$: t1TextReveal = getProgress(t1Progress, 0, 0.6); // Finish words by 60% of section
+	$: t1GridEnter = getProgress(t1Progress, 0.5, 0.9); // Start grid at 50%
+	$: t1Exit = getProgress(t1Progress, 0.9, 1); // Fade out whole section at end
+
+	// Section 2: Narrative 2 + Breakthroughs
+	$: t2ScrollStart = 3800;
+	$: t2ScrollEnd = 6500;
+	$: t2Progress = getProgress(y, t2ScrollStart, t2ScrollEnd);
+
+	$: t2TextReveal = getProgress(t2Progress, 0, 0.5);
+	$: t2GridEnter = getProgress(t2Progress, 0.4, 0.8);
+	$: t2Exit = getProgress(t2Progress, 0.9, 1);
+
+	// Section 3: Final Call
+	$: finalStart = 6800;
+	$: finalEnd = 8000;
+	$: finalProgress = getProgress(y, finalStart, finalEnd);
 
 	onMount(() => {
 		window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -26,70 +59,78 @@
 	});
 </script>
 
+<svelte:window bind:scrollY={y} bind:innerHeight />
+
 <ThemeToggle />
-
 <GooeyBackground />
-<FactCloud facts={CLINICAL_FACTS} scrollProgress={activeProgress} />
+<FactCloud facts={CLINICAL_FACTS} scrollProgress={t1Progress + t2Progress} />
 
-<main>
-	<ScrollSection id="intro" heightPx={1200} startVisible={true} endBuffer={0.1} let:progress>
-		<Logo {progress} />
-	</ScrollSection>
+<div class="pointer-events-none fixed inset-0 z-20 flex items-center justify-center">
+	{#if y < 1000}
+		<div style:opacity={introOpacity} style:transform="scale({1 + introProgress * 0.05})">
+			<Logo progress={introProgress} />
+		</div>
+	{/if}
 
-	<ScrollSection
-		id="track1"
-		heightPx={3200}
-		endBuffer={0.4}
-		on:progress={handleMainNarrative}
-		let:progress
-	>
-		<WordReveal lines={NARRATIVE_CONTENT.top} {progress} />
-	</ScrollSection>
+	{#if t1Progress > 0 && t1Progress < 1}
+		<div class="stage-container" style:opacity={1 - t1Exit}>
+			<div class="flex w-full flex-col items-center">
+				<div
+					style:transform="translateY({t1GridEnter * -40}px)"
+					style:opacity={1 - t1GridEnter * 0.5}
+				>
+					<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
+				</div>
 
-	<ScrollSection id="grid1" heightPx={1800} endBuffer={0.1} let:progress>
-		<div class="grid-container">
-			<div class="identity-grid">
-				{#each PERSONAS as p}
-					<GridCell type="identity" label={p.label} />
-				{/each}
+				<div
+					class="identity-grid-wrapper pointer-events-auto"
+					style:opacity={t1GridEnter}
+					style:transform="translateY({(1 - t1GridEnter) * 60}px) scale({0.95 +
+						t1GridEnter * 0.05})"
+				>
+					<div class="identity-grid">
+						{#each PERSONAS as p}
+							<GridCell type="identity" label={p.label} />
+						{/each}
+					</div>
+				</div>
 			</div>
 		</div>
-	</ScrollSection>
+	{/if}
 
-	<ScrollSection
-		id="track2"
-		heightPx={3200}
-		endBuffer={0.4}
-		on:progress={handleMainNarrative}
-		let:progress
-	>
-		<WordReveal lines={NARRATIVE_CONTENT.bottom} {progress} />
-	</ScrollSection>
+	{#if t2Progress > 0 && t2Progress < 1}
+		<div class="stage-container" style:opacity={1 - t2Exit}>
+			<div class="flex w-full flex-col items-center">
+				<div style:transform="translateY({t2GridEnter * -30}px)">
+					<WordReveal lines={NARRATIVE_CONTENT.bottom} progress={t2TextReveal} />
+				</div>
 
-	<ScrollSection id="grid2" heightPx={2200} endBuffer={0.1} let:progress>
-		<div class="grid-container">
-			<div class="breakthrough-grid">
-				{#each BREAKTHROUGHS as b}
-					<GridCell type="uniform">
-						<span class="breakthrough-title">{b.title}</span>
-						<p class="breakthrough-desc">{b.desc}</p>
-					</GridCell>
-				{/each}
+				<div
+					class="grid-container pointer-events-auto"
+					style:opacity={t2GridEnter}
+					style:transform="translateY({(1 - t2GridEnter) * 40}px)"
+				>
+					<div class="breakthrough-grid">
+						{#each BREAKTHROUGHS as b}
+							<GridCell type="uniform">
+								<span class="breakthrough-title">{b.title}</span>
+								<p class="breakthrough-desc">{b.desc}</p>
+							</GridCell>
+						{/each}
+					</div>
+				</div>
 			</div>
 		</div>
-	</ScrollSection>
+	{/if}
 
-	<ScrollSection
-		id="track3"
-		heightPx={2800}
-		endBuffer={0.4}
-		endVisible={true}
-		on:progress={handleMainNarrative}
-		let:progress
-	>
-		<WordReveal lines={NARRATIVE_CONTENT.final} {progress} />
-	</ScrollSection>
-</main>
+	{#if finalProgress > 0}
+		<div class="stage-container">
+			<WordReveal lines={NARRATIVE_CONTENT.final} progress={finalProgress} />
+		</div>
+	{/if}
+</div>
+
+<div class="relative" style="height: 9000px;"></div>
 
 <style>
 	:global(body) {
@@ -137,25 +178,39 @@
 
 	.grid-container {
 		width: 100%;
-		max-width: 1100px;
+		max-width: 600px;
 		padding: 0 24px;
 		margin: 0 auto;
 		display: flex;
 		justify-content: center;
 	}
 
+	.stage-container {
+		position: absolute;
+		width: 100%;
+		max-width: 1200px;
+		padding: 0 2rem;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		will-change: transform, opacity;
+	}
+
 	.identity-grid {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
-		gap: 16px;
+		gap: 8px;
 		width: 100%;
+		max-width: 900px;
+		margin-top: -48px;
 	}
 
 	.breakthrough-grid {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
-		gap: 16px;
+		gap: 20px;
 		width: 100%;
 	}
 
