@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { handleGlobalMouseMove, mouseCoords } from '$lib/stores';
-	import { NARRATIVE_CONTENT, PERSONAS, FACT_POOLS, STAR_COORDINATES } from '$lib/constants';
+	import {
+		NARRATIVE_CONTENT,
+		PERSONAS,
+		FACT_POOLS,
+		STAR_COORDINATES,
+		SEO_CONFIG
+	} from '$lib/constants';
 
 	// Components
 	import GooeyBackground from '$lib/components/GooeyBackground.svelte';
@@ -18,6 +24,16 @@
 	let scrollHeight = 0;
 
 	let activeSlots: any[] = [];
+
+	const jsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'Organization',
+		name: SEO_CONFIG.title,
+		url: SEO_CONFIG.url,
+		logo: `${SEO_CONFIG.url}/logo.png`,
+		description: SEO_CONFIG.description,
+		sameAs: [`https://twitter.com/${SEO_CONFIG.twitterHandle.replace('@', '')}`]
+	};
 
 	function shuffle<T>(array: T[]): T[] {
 		return [...array].sort(() => Math.random() - 0.5);
@@ -144,6 +160,28 @@
 		isModalOpen = true;
 	}
 </script>
+
+<svelte:head>
+	<title>{SEO_CONFIG.title}</title>
+	<meta name="description" content={SEO_CONFIG.description} />
+
+	<!-- Open Graph / Facebook -->
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content={SEO_CONFIG.url} />
+	<meta property="og:title" content={SEO_CONFIG.title} />
+	<meta property="og:description" content={SEO_CONFIG.description} />
+	<meta property="og:image" content={SEO_CONFIG.ogImage} />
+
+	<!-- Twitter -->
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:url" content={SEO_CONFIG.url} />
+	<meta name="twitter:title" content={SEO_CONFIG.title} />
+	<meta name="twitter:description" content={SEO_CONFIG.description} />
+	<meta name="twitter:image" content={SEO_CONFIG.ogImage} />
+
+	<!-- JSON-LD -->
+	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`}
+</svelte:head>
 
 <svelte:window bind:scrollY={y} bind:innerHeight bind:innerWidth on:resize={updateHeight} />
 

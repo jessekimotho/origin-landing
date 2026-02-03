@@ -25,6 +25,15 @@ export const NARRATIVE_CONTENT = {
 	] as LineData[]
 };
 
+export const SEO_CONFIG = {
+	title: 'Origin - The Fight Against Chronic Disease',
+	description:
+		'The fight against Chronic Disease starts with you. Join the movement to shift culture from reactive disease management to proactive metabolic health.',
+	url: 'https://origin.org', // TODO: Update with actual domain
+	ogImage: 'https://origin.org/og-image.jpg', // TODO: Update with actual image path
+	twitterHandle: '@origin' // TODO: Update with actual handle
+};
+
 export const ROLE_COPY: Record<string, { desc: string; placeholder: string }> = {
 	'Public Figure': {
 		desc: 'Influence the narrative. Use your platform to shift the culture from reactive disease management to proactive metabolic health.',
