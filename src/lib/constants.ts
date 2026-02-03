@@ -1,5 +1,6 @@
 export interface LineData {
-	size: 'medium' | 'larger';
+	// Added 'small' to the hierarchy
+	size: 'small' | 'medium' | 'large';
 	text: string;
 }
 
@@ -27,17 +28,17 @@ export const CLINICAL_FACTS = [
 export const NARRATIVE_CONTENT = {
 	top: [
 		{ size: 'medium', text: 'Chronic Disease' },
-		{ size: 'medium', text: 'lies in wait for all of us' },
-		{ size: 'larger', text: 'We all have the right to contribute' }
+		{ size: 'small', text: 'lies in wait for all of us' },
+		{ size: 'large', text: 'We all have the right to contribute' }
 	] as LineData[],
 	bottom: [
 		{ size: 'medium', text: 'Breakthroughs are being made' },
-		{ size: 'medium', text: 'against chronic disease' },
-		{ size: 'larger', text: 'Together we can ensure they make it to patients' }
+		{ size: 'small', text: 'against chronic disease' },
+		{ size: 'large', text: 'Together we can ensure they make it to patients' }
 	] as LineData[],
 	final: [
 		{ size: 'medium', text: 'The fight against Chronic Disease' },
-		{ size: 'larger', text: 'starts with you' }
+		{ size: 'large', text: 'starts with you' }
 	] as LineData[]
 };
 

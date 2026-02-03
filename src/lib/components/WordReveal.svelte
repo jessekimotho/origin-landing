@@ -1,13 +1,14 @@
 <script lang="ts">
 	interface LineData {
-		size: 'medium' | 'larger';
+		// Updated to handle the specific three-tier request
+		size: 'medium' | 'small' | 'large';
 		text: string;
 	}
 
 	export let lines: LineData[] = [];
 	export let progress: number = 0;
 
-	// Process lines into global word indices
+	// Process lines into global word indices for a continuous reveal animation
 	$: processedLines = (() => {
 		let globalWordCount = 0;
 		return lines.map((line) => {
@@ -23,10 +24,8 @@
 
 	/**
 	 * LINGER LOGIC:
-	 * We multiply totalWords by 1.6.
-	 * This means when progress is ~0.6 (60% scrolled), the visibleIndex
-	 * will already equal totalWords. All words stay 'active' for the
-	 * remaining 40% of the scroll.
+	 * We multiply totalWords by 1.6 so the reveal finishes around 60% scroll,
+	 * allowing the full message to "linger" as the user continues scrolling.
 	 */
 	$: visibleIndex = Math.floor(progress * (totalWords * 1.6)) - 1;
 </script>
@@ -57,7 +56,7 @@
 		align-items: center;
 		justify-content: center;
 		text-align: center;
-		max-width: 1000px; /* Narrower for better reading rhythm */
+		max-width: 1200px;
 		margin: 0 auto;
 	}
 
@@ -65,29 +64,34 @@
 		display: block;
 		text-align: center;
 		line-height: 1.1;
-		font-weight: 600;
 		font-family: 'Exposure', serif;
 	}
 
+	/* Tier 1: Medium (The Intro) */
 	.line.medium .word {
-		font-size: var(--fs-medium, clamp(1.5rem, 2vw, 2.5rem));
+		font-size: 2.75rem;
 		font-weight: 300;
-		font-family: 'Exposure', serif;
+		letter-spacing: -0.01em;
 	}
 
-	.line.larger .word {
-		font-size: var(--fs-large, clamp(2rem, 4vw, 3.75rem));
-		font-weight: 400;
-		font-family: 'Exposure', serif;
-		letter-spacing: -0.03em;
+	/* Tier 2: Small (The Bridge) */
+	.line.small .word {
+		margin-top: 8px;
+		font-size: 1.75rem;
+	}
+
+	/* Tier 3: Large (The Statement) */
+	.line.large .word {
+		font-size: 3.25rem;
+		font-weight: 700; /* Heavier for the large statement */
+		letter-spacing: -0.05em; /* Tighter kerning for impact */
 	}
 
 	.word {
 		opacity: 0.1;
-		filter: blur(12px); /* Increased blur for a softer "In" */
-		transform: translateY(15px); /* Slightly deeper drop */
+		filter: blur(12px);
+		transform: translateY(20px);
 		display: inline-block;
-		/* Snappier transitions to give more time for the 'Linger' */
 		transition:
 			opacity 0.4s cubic-bezier(0.2, 0, 0.2, 1),
 			filter 0.5s ease-out,
@@ -101,16 +105,25 @@
 		transform: translateY(0px);
 	}
 
+	/* Keep the small bridge text slightly more subtle even when active */
+	.line.small .word.active {
+		opacity: 0.8;
+	}
+
 	:global(html[data-theme='light']) .word {
-		opacity: 0.05;
+		opacity: 0.08;
 	}
 
 	@media (max-width: 768px) {
 		.line.medium .word {
-			font-size: 1.5rem;
+			font-size: 1.4rem;
 		}
-		.line.larger .word {
-			font-size: 2rem;
+		.line.small .word {
+			font-size: 0.75rem;
+			letter-spacing: 0.25em;
+		}
+		.line.large .word {
+			font-size: 2.2rem;
 		}
 	}
 </style>

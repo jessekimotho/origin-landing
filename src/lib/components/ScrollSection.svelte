@@ -60,21 +60,3 @@
 		<slot progress={animProgress} />
 	</div>
 </section>
-
-<style>
-	.scroll-track {
-		position: relative;
-		width: 100%;
-		isolation: isolate;
-	}
-	.sticky-viewport {
-		position: sticky;
-		top: 0;
-		height: 100vh;
-		width: 100%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-	}
-</style>

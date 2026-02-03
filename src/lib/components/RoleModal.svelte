@@ -5,7 +5,7 @@
 	export let isOpen = false;
 	export let label = '';
 	export let style = { border: '', bg: '', text: '' };
-	export let article = 'a';
+	export let article = '';
 
 	const dispatch = createEventDispatcher();
 	let dialog: HTMLDialogElement;
@@ -37,7 +37,9 @@
 			<button class="close-btn" on:click={close} aria-label="Close modal">&times;</button>
 
 			<header>
-				<h2 class="titling">I am {article} <span class="highlight titling">{label}</span></h2>
+				<h2 class="titling">
+					I am {article ? article + ' ' : ''}<span class="highlight titling">{label}</span>
+				</h2>
 				<p>
 					Join Actualfood's mission to accelerate breakthroughs against chronic disease. Tell us how
 					you'd like to contribute.
