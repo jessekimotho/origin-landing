@@ -30,7 +30,12 @@
 		if (prefixEl) shiftAmount = (prefixEl.offsetWidth + 8) / 2;
 	}
 
-	onMount(calculateShift);
+	onMount(() => {
+		calculateShift();
+		window.addEventListener('resize', calculateShift);
+		return () => window.removeEventListener('resize', calculateShift);
+	});
+
 	$: (label, calculateShift());
 </script>
 
@@ -48,7 +53,10 @@
 	<div class="cell-content-wrapper">
 		{#if type === 'identity'}
 			<div class="identity-layout">
-				<div class="sizer" aria-hidden="true">I am {article} {label}</div>
+				<div class="sizer" aria-hidden="true">
+					<span class="desktop-only">I am {article}</span>
+					{label}
+				</div>
 				<div class="animator">
 					<span class="prefix" bind:this={prefixEl}>I am {article}</span>
 					<span class="cell-label">{label}</span>
@@ -115,6 +123,8 @@
 		grid-area: content;
 		display: flex;
 		align-items: center;
+		justify-content: center;
+		width: 100%;
 		white-space: nowrap;
 		transform: translateX(calc(var(--shift) * -1));
 		transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -149,5 +159,40 @@
 
 	.cell:hover .cell-label {
 		color: var(--active-text);
+	}
+
+	@media (max-width: 760px) {
+		.identity-layout {
+			padding: 0 1rem;
+			height: 40px;
+			font-size: 0.95rem;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.cell {
+			flex: 1 1 auto;
+			max-width: 100%;
+		}
+
+		.identity-layout {
+			padding: 0 16px;
+			height: 42px;
+			font-size: 0.9rem;
+			width: 100%;
+		}
+
+		.desktop-only,
+		.prefix {
+			display: none;
+		}
+
+		.animator {
+			transform: none !important;
+		}
+		.cell-content-wrapper {
+			display: flex;
+			flex: 1 1 auto;
+		}
 	}
 </style>

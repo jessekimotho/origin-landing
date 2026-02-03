@@ -331,7 +331,7 @@
 			transform: translateY(-50%) scale(0.75);
 		}
 		.identity-grid {
-			padding: 0 16px;
+			padding: 0 24px;
 			width: 100%;
 			box-sizing: border-box;
 		}
