@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 
 	export let isOpen = false;
 	export let label = '';
@@ -10,31 +11,46 @@
 	const dispatch = createEventDispatcher();
 	let dialog: HTMLDialogElement;
 
+	// Use a reactive statement that handles the opening instantly
+	// but waits for transitions on closing.
 	$: if (dialog) {
 		if (isOpen) {
 			dialog.showModal();
 			document.body.style.overflow = 'hidden';
-		} else {
-			dialog.close();
+		} else if (dialog.open) {
+			// We don't call dialog.close() here.
+			// We let the {#if isOpen} block handle the out-transition.
 			document.body.style.overflow = 'unset';
 		}
 	}
 
-	function close() {
+	async function handleClose() {
 		dispatch('close');
+	}
+
+	// This ensures the native dialog actually closes once the Svelte transition finishes
+	function onOutroEnd() {
+		if (!isOpen && dialog) {
+			dialog.close();
+		}
 	}
 </script>
 
-<dialog
-	bind:this={dialog}
-	on:close={close}
-	on:click|self={close}
-	class="role-dialog"
-	style="--role-color: {style.border}; --role-text: {style.text}"
->
-	{#if isOpen}
-		<div class="modal-content" transition:scale={{ duration: 300, start: 0.95 }}>
-			<button class="close-btn" on:click={close} aria-label="Close modal">&times;</button>
+{#if isOpen}
+	<dialog
+		bind:this={dialog}
+		on:click|self={handleClose}
+		on:outroend={onOutroEnd}
+		class="role-dialog"
+		style="--role-color: {style.border}; --role-text: {style.text}"
+		transition:fade={{ duration: 300 }}
+	>
+		<div
+			class="modal-content"
+			in:scale={{ duration: 400, start: 0.92, easing: cubicOut }}
+			out:scale={{ duration: 250, start: 0.96, easing: cubicOut }}
+		>
+			<button class="close-btn" on:click={handleClose} aria-label="Close modal">&times;</button>
 
 			<header>
 				<h2 class="titling">
@@ -46,7 +62,7 @@
 				</p>
 			</header>
 
-			<form on:submit|preventDefault={() => close()}>
+			<form on:submit|preventDefault={handleClose}>
 				<div class="input-group">
 					<label for="name">Name</label>
 					<input type="text" id="name" required placeholder="Your name" />
@@ -71,53 +87,74 @@
 				</button>
 			</form>
 		</div>
-	{/if}
-</dialog>
+	</dialog>
+{/if}
 
 <style>
+	/* Ensure the dialog is visible and centered when open */
 	.role-dialog {
-		position: fixed;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
 		background: transparent;
 		border: none;
 		padding: 0;
 		margin: 0;
 		outline: none;
-		overflow: visible;
-		display: block;
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		max-width: none;
+		max-height: none;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
 	}
 
 	.role-dialog::backdrop {
-		background: rgba(0, 0, 0, 0.6);
+		background: rgba(0, 0, 0, 0.75);
 		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 	}
 
+	/* Fixed the content container to prevent jank */
 	.modal-content {
-		background: rgba(15, 15, 20, 0.8);
-		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
+		background: rgba(10, 10, 15, 0.85);
+		backdrop-filter: blur(32px);
+		-webkit-backdrop-filter: blur(32px);
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		width: calc(100vw - 40px);
 		max-width: 500px;
-		border-radius: 24px;
+		border-radius: 28px;
 		padding: 40px;
-		box-shadow: 0 0 80px -20px rgba(0, 0, 0, 0.5);
+		box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
 		color: white;
+		position: relative;
+		/* Force hardware acceleration for the scale animation */
+		will-change: transform, opacity;
 	}
 
 	.close-btn {
 		position: absolute;
-		top: 20px;
-		right: 20px;
-		background: none;
+		top: 24px;
+		right: 24px;
+		background: rgba(255, 255, 255, 0.05);
 		border: none;
 		color: white;
-		font-size: 28px;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		cursor: pointer;
-		opacity: 0.5;
-		transition: opacity 0.2s;
+		opacity: 0.6;
+		transition: all 0.2s;
+	}
+
+	.close-btn:hover {
+		opacity: 1;
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.titling {
@@ -125,19 +162,45 @@
 		font-size: 1.8rem;
 		margin-bottom: 12px;
 		font-weight: 300;
+		letter-spacing: -0.02em;
 	}
+
 	.highlight {
 		color: var(--role-text);
-		font-weight: 700;
+		font-weight: 600;
 	}
 
 	header p {
-		color: rgba(255, 255, 255, 0.6);
+		color: rgba(255, 255, 255, 0.5);
 		font-size: 0.95rem;
-		line-height: 1.5;
+		line-height: 1.6;
 		margin-bottom: 30px;
 	}
 
+	.input-group input,
+	.input-group textarea {
+		background: rgba(255, 255, 255, 0.04);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		transition: all 0.2s;
+	}
+
+	.input-group input:focus,
+	.input-group textarea:focus {
+		background: rgba(255, 255, 255, 0.08);
+		border-color: var(--role-color);
+		box-shadow: 0 0 0 4px rgba(var(--role-color-rgb), 0.1);
+	}
+
+	.submit-btn {
+		transition:
+			transform 0.2s,
+			filter 0.2s,
+			box-shadow 0.2s;
+	}
+
+	.submit-btn:active {
+		transform: scale(0.98);
+	}
 	form {
 		display: flex;
 		flex-direction: column;

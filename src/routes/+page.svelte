@@ -20,17 +20,27 @@
 			'Chronic metabolic dysfunction now precedes clinical diagnosis by up to a decade.',
 			'Insulin resistance often begins in the liver years before blood glucose levels spike.',
 			'Chronic disease accounts for 71% of all deaths globally.',
-			'Metabolic health is the primary driver of all-cause mortality in the modern age.'
+			'Metabolic health is the primary driver of all-cause mortality in the modern age.',
+			'Liver fat accumulation is the hidden driver of early metabolic decay.',
+			'Cellular damage compounds long before it reflects in standard blood panels.',
+			'Precision nutrition is impossible without real-time glucose monitoring.',
+			'The biological cost of stress is measurable at the chromosomal level.'
 		],
 		breakthroughs: [
 			'Precision CRISPR-Cas9 editing offers a permanent resolution to genetic drivers.',
 			'Digital twins allow us to simulate therapeutic outcomes with high-fidelity.',
 			'Wearable bio-interfaces detect systemic shifts 48 hours before symptoms appear.',
-			'Continuous biomarker streams are replacing static annual blood panels.'
+			'Continuous biomarker streams are replacing static annual blood panels.',
+			'AI Digital Twins can now predict disease onset with 94% accuracy.',
+			'Targeted gene therapies are moving from rare diseases to chronic care.',
+			'Biosensors now track inflammation cycles with millisecond precision.',
+			'Decentralized trials accelerate drug discovery by up to 5 years.'
 		],
 		final: [
 			'Your biological data is the most valuable currency in the fight for longevity.',
-			'Collective data contribution is the fastest path to metabolic resilience.'
+			'Collective data contribution is the fastest path to metabolic resilience.',
+			'Decentralized research puts the power of discovery back in your hands.',
+			'The future of medicine is proactive, personalized, and patient-driven.'
 		]
 	};
 
@@ -44,16 +54,42 @@
 		scrollHeight = document.documentElement.scrollHeight;
 		window.addEventListener('mousemove', handleGlobalMouseMove);
 
+		// 1. Randomize Content
 		const burdenSelection = shuffle(pools.burden).slice(0, 2);
 		const breakthroughSelection = shuffle(pools.breakthroughs).slice(0, 2);
 		const finalSelection = shuffle(pools.final).slice(0, 1);
 
+		// 2. Randomize Universal Locations
+		const locationPool = shuffle([
+			{ x: 5, y: 15 }, // Top Left
+			{ x: 82, y: 18 }, // Top Right
+			{ x: 8, y: 75 }, // Bottom Left
+			{ x: 75, y: 80 }, // Bottom Right
+			{ x: 45, y: 12 } // Top Center
+		]);
+
+		// 3. Randomize Parallax Intensity
+		const depths = shuffle([0.7, 1.0, 1.2, 1.5, 1.8]);
+
+		// 4. Map Narrative Timing to Random Locations
 		activeSlots = [
-			{ text: burdenSelection[0], x: 8, y: 15, start: 0.1, end: 0.35, depth: 1.2 },
-			{ text: burdenSelection[1], x: 82, y: 25, start: 0.18, end: 0.4, depth: 0.8 },
-			{ text: breakthroughSelection[0], x: 12, y: 70, start: 0.5, end: 0.8, depth: 1.5 },
-			{ text: breakthroughSelection[1], x: 78, y: 80, start: 0.6, end: 0.8, depth: 1.0 },
-			{ text: finalSelection[0], x: 45, y: 12, start: 0.7, end: 1, depth: 1.1 }
+			{ ...locationPool[0], text: burdenSelection[0], start: 0.1, end: 0.35, depth: depths[0] },
+			{ ...locationPool[1], text: burdenSelection[1], start: 0.18, end: 0.4, depth: depths[1] },
+			{
+				...locationPool[2],
+				text: breakthroughSelection[0],
+				start: 0.5,
+				end: 0.8,
+				depth: depths[2]
+			},
+			{
+				...locationPool[3],
+				text: breakthroughSelection[1],
+				start: 0.6,
+				end: 0.8,
+				depth: depths[3]
+			},
+			{ ...locationPool[4], text: finalSelection[0], start: 0.7, end: 1, depth: depths[4] }
 		];
 	});
 
@@ -61,7 +97,6 @@
 		return Math.min(Math.max((scroll - start) / (end - start), 0), 1);
 	};
 
-	// Use a lighter blur threshold for facts
 	function getClarity(progress: number, start: number, end: number) {
 		const fade = 0.08;
 		if (progress < start || progress > end) return 0;
@@ -72,6 +107,7 @@
 
 	$: overallProgress = scrollHeight > 0 ? y / (scrollHeight - innerHeight) : 0;
 
+	// Narrative Sections
 	$: t1Progress = getProgress(y, 1500, 6000);
 	$: t1TextReveal = getProgress(t1Progress, 0, 0.3);
 	$: t1Exit = getProgress(t1Progress, 0.95, 1);
@@ -91,7 +127,7 @@
 <GooeyBackground />
 <AuroraProgress progress={overallProgress} />
 
-<div class=" star-container pointer-events-none fixed inset-0 z-0" style="contain: strict;">
+<div class="star-container pointer-events-none fixed inset-0 z-0" style="contain: strict;">
 	{#each activeSlots as slot}
 		{@const clarity = getClarity(overallProgress, slot.start, slot.end)}
 		<div
@@ -119,14 +155,17 @@
 		{#if t1Progress > 0 && t1Progress < 1}
 			<section class="stage-container" style:opacity={1 - t1Exit}>
 				<WordReveal lines={NARRATIVE_CONTENT.top} progress={t1TextReveal} />
-				<div class="identity-grid pointer-events-auto mt-8">
-					{#each PERSONAS as p, i}
-						<GridCell
-							type="identity"
-							label={p.label}
-							revealProgress={getProgress(t1Progress, 0.2 + i * 0.04, 0.6 + i * 0.04)}
-						/>
-					{/each}
+
+				<div class="identity-grid-wrapper pointer-events-auto mt-8">
+					<div class="identity-grid">
+						{#each PERSONAS as p, i}
+							<GridCell
+								type="identity"
+								label={p.label}
+								revealProgress={getProgress(t1Progress, 0.15 + i * 0.03, 0.55 + i * 0.03)}
+							/>
+						{/each}
+					</div>
 				</div>
 			</section>
 		{/if}
@@ -165,58 +204,41 @@
 		color: #fff;
 		font-family: 'Helvetica Neue', sans-serif;
 		overflow-x: hidden;
-		/* Force passive scrolling */
 		overscroll-behavior: none;
 	}
 
 	.star-fact-container {
 		position: absolute;
 		width: 320px;
-
-		padding-left: 12px;
-		border-left: 2px solid rgba(255, 255, 255, 0.5);
 		display: flex;
 		align-items: flex-start;
 		gap: 20px;
-		/* Removing transition on opacity/filter to prevent frame collision */
 		will-change: transform, opacity;
+		backface-visibility: hidden;
+	}
+
+	/* GPU-Friendly Border */
+	.star-fact-container::before {
+		content: '';
+		flex-shrink: 0;
+		width: 2px;
+		height: 100%;
+		min-height: 40px;
+		background: rgba(255, 255, 255, 0.4);
 	}
 
 	.fact-text {
-		font-size: 0.9rem;
+		font-size: 0.85rem;
 		line-height: 1.6;
 		color: rgba(255, 255, 255, 0.5);
 		font-weight: 300;
-		transition: color 0.3s linear;
+		transition: color 0.4s linear;
+		margin: 0;
 	}
 
 	.fact-text.in-focus {
 		color: #fff;
-		text-shadow: 0 2px 10px rgba(255, 255, 255, 0.2);
-	}
-
-	.pulse-core {
-		flex-shrink: 0;
-		width: 4px;
-		height: 4px;
-		background: #fff;
-		border-radius: 50%;
-		margin-top: 8px;
-		box-shadow: 0 0 10px #fff;
-		/* Hardware accelerated animation */
-		animation: star-breath 4s infinite linear;
-	}
-
-	@keyframes star-breath {
-		0%,
-		100% {
-			transform: scale(1) translateZ(0);
-			opacity: 0.4;
-		}
-		50% {
-			transform: scale(2.2) translateZ(0);
-			opacity: 0.8;
-		}
+		text-shadow: 0 2px 15px rgba(255, 255, 255, 0.2);
 	}
 
 	.stage-container {
@@ -226,15 +248,24 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		/* Isolate rendering */
 		contain: content;
 	}
+
+	.identity-grid-wrapper {
+		transform: translateZ(0); /* Force GPU */
+		will-change: opacity;
+		width: 100%;
+		display: flex;
+		justify-content: center;
+	}
+
 	.identity-grid {
 		display: flex;
 		flex-wrap: wrap;
 		justify-content: center;
 		gap: 12px;
 		max-width: 900px;
+		contain: layout; /* Prevent global reflows */
 	}
 
 	.get-started {
@@ -248,12 +279,14 @@
 		cursor: pointer;
 		transition: 0.3s;
 	}
+
 	.get-started:hover {
 		background: #fff;
 		color: #000;
 		transform: scale(1.05);
 	}
+
 	.star-container {
-		opacity: 0.7;
+		opacity: 0.8;
 	}
 </style>
